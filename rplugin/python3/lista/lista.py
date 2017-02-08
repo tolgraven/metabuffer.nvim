@@ -36,6 +36,8 @@ class Lista(Prompt):
     """Lista class."""
 
     prefix = '# '
+    syntax = 'buffer' #'lista'
+    bufsyntax = ''
 
     statusline = ''.join([
         '%%#ListaStatuslineMode%s# %s ',
@@ -88,6 +90,13 @@ class Lista(Prompt):
         self.case.next()
         self._previous = ''
 
+    def switch_highlight(self):
+        if self.syntax != 'lista':
+            self.syntax = 'lista'
+        else:
+            self.syntax = self.bufsyntax
+        self._previous = ''
+
     def get_ignorecase(self):
         if self.case.current is CASE_IGNORE:
             return True
@@ -108,6 +117,9 @@ class Lista(Prompt):
         self._bufhidden = self._buffer.options['bufhidden']
         self._buffer.options['bufhidden'] = 'hide'
         foldcolumn = self.nvim.current.window.options['foldcolumn']
+        self.bufsyntax = self.nvim.current.buffer.options['syntax']
+        if self.syntax != 'lista':
+            self.syntax = self.bufsyntax
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
         self.nvim.current.buffer.options['buftype'] = 'nofile'
@@ -119,7 +131,7 @@ class Lista(Prompt):
         self.nvim.current.window.options['colorcolumn'] = ''
         self.nvim.current.window.options['cursorline'] = True
         self.nvim.current.window.options['cursorcolumn'] = False
-        self.nvim.command('set syntax=lista')
+        self.nvim.command('set syntax=' + self.syntax)
         self.nvim.call('cursor', [self.selected_index + 1, 0])
         self.nvim.command('normal! zvzz')
         return super().on_init()
@@ -175,6 +187,7 @@ class Lista(Prompt):
         else:
             self.matcher.current.remove_highlight()
         assign_content(self.nvim, [self._content[i] for i in self._indices])
+        self.nvim.command('set syntax=' + self.syntax)
         return super().on_update(status)
 
     def on_term(self, status):
