@@ -38,6 +38,8 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-P>', '<lista:select_next_candidate>', 'noremap'),
     ('<C-K>', '<lista:select_previous_candidate>', 'noremap'),
     ('<C-J>', '<lista:select_next_candidate>', 'noremap'),
+    ('<Left>', '<lista:select_previous_candidate>', 'noremap'),
+    ('<Right>', '<lista:select_next_candidate>', 'noremap'),
     ('<S-Tab>', '<lista:select_previous_candidate>', 'noremap'),
     ('<Tab>', '<lista:select_next_candidate>', 'noremap'),
     ('<C-^>', '<lista:switch_matcher>', 'noremap'),

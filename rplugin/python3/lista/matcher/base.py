@@ -38,7 +38,7 @@ class AbstractMatcher(metaclass=ABCMeta):
             self.nvim.call('matchdelete', self._match_id)
             self._match_id = None
 
-    def highlight(self, query, ignorecase):
+    def highlight(self, query, ignorecase, highlight_group='Title'):
         """Highlight ``query``.
 
         Args:
@@ -51,7 +51,7 @@ class AbstractMatcher(metaclass=ABCMeta):
         pattern = self.get_highlight_pattern(query)
         self._match_id = self.nvim.call(
             'matchadd',
-            'Title',
+            highlight_group,
             ('\c' if ignorecase else '\C') + pattern,
             0,
         )

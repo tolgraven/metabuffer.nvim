@@ -36,16 +36,17 @@ class Lista(Prompt):
     """Lista class."""
 
     prefix = '# '
-    syntax = 'buffer' #'lista'
+    syntax = 'buffer'  # 'lista'
     bufsyntax = ''
 
     statusline = ''.join([
         '%%#ListaStatuslineMode%s# %s ',
         '%%#ListaStatuslineFile# %s ',
+        '%%#ListaStatuslineIndicator# %d/%d ',
         '%%#ListaStatuslineMiddle#%%=',
         '%%#ListaStatuslineMatcher# Matcher: %s (C-^ to switch) ',
-        '%%#ListaStatuslineMatcher# Case: %s (C-_ to switch) ',
-        '%%#ListaStatuslineIndicator# %d/%d ',
+        '%%#ListaStatuslineMatcher# Case: %s (C-_) ',
+        '%%#ListaStatuslineMatcher# Syntax: %s (C-s) ',
     ])
 
     selected_index = 0
@@ -71,6 +72,9 @@ class Lista(Prompt):
             nvim,
             nvim.vars.get('lista#custom_mappings', [])
         )
+        self.highlight_group = nvim.vars.get('lista#highlight_group')
+        if not self.highlight_group:
+            self.highlight_group = 'Search'
         self.restore(condition)
 
     def start(self):
@@ -117,12 +121,16 @@ class Lista(Prompt):
         self._bufhidden = self._buffer.options['bufhidden']
         self._buffer.options['bufhidden'] = 'hide'
         foldcolumn = self.nvim.current.window.options['foldcolumn']
+        number = self.nvim.current.window.options['number']
+        relativenumber = self.nvim.current.window.options['relativenumber']
         self.bufsyntax = self.nvim.current.buffer.options['syntax']
-        if self.syntax != 'lista':
-            self.syntax = self.bufsyntax
+        if not self.bufsyntax:
+            self.bufsyntax = 'lista'  # safety
+
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
-        self.nvim.current.buffer.options['buftype'] = 'nofile'
+# 'nofile' seems to cause errors "buffer already exists" in like, man page
+        self.nvim.current.buffer.options['buftype'] = 'nowrite'
         self.nvim.current.buffer.options['bufhidden'] = 'wipe'
         self.nvim.current.buffer.options['buflisted'] = False
         self.nvim.current.window.options['spell'] = False
@@ -130,8 +138,16 @@ class Lista(Prompt):
         self.nvim.current.window.options['foldcolumn'] = foldcolumn
         self.nvim.current.window.options['colorcolumn'] = ''
         self.nvim.current.window.options['cursorline'] = True
-        self.nvim.current.window.options['cursorcolumn'] = False
-        self.nvim.command('set syntax=' + self.syntax)
+        self.nvim.current.window.options['number'] = number
+        self.nvim.current.window.options['relativenumber'] = relativenumber
+
+        if self.syntax != 'lista':
+            self.syntax = self.bufsyntax
+        self.nvim.current.buffer.options['syntax'] = self.syntax
+        #also want to be able to enter arbitrary filetypes / syntaxes, 
+        #for stuff like captured output (like :Verbose) etc
+ 
+        # self.nvim.current.buffer.options['modifiable'] = True
         self.nvim.call('cursor', [self.selected_index + 1, 0])
         self.nvim.command('normal! zvzz')
         return super().on_init()
@@ -153,10 +169,11 @@ class Lista(Prompt):
             insert_mode_name.capitalize(),
             insert_mode_name.upper(),
             self._buffer_name,
-            self.matcher.current.name,
-            case_name,
             len(self._indices),
             self._line_count,
+            self.matcher.current.name,
+            case_name,
+            self.syntax,
         )
         self.nvim.command('redrawstatus')
         return super().on_redraw()
@@ -183,11 +200,11 @@ class Lista(Prompt):
             ignorecase,
         )
         if len(self._indices) < 1000:
-            self.matcher.current.highlight(self.text, ignorecase)
+            self.matcher.current.highlight(self.text, ignorecase, self.highlight_group)
         else:
             self.matcher.current.remove_highlight()
+        self.nvim.current.buffer.options['syntax'] = self.syntax
         assign_content(self.nvim, [self._content[i] for i in self._indices])
-        self.nvim.command('set syntax=' + self.syntax)
         return super().on_update(status)
 
     def on_term(self, status):
