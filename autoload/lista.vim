@@ -5,6 +5,9 @@ if has('nvim')
   function! lista#resume(default) abort
     return _lista_resume(a:default)
   endfunction
+	function! lista#callback_update(default) abort
+		return _lista_callback_signs(a:default)
+	endfunction
 else
   function! lista#start(default) abort
     return lista#rplugin#start(a:default)

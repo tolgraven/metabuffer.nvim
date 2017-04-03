@@ -1,5 +1,6 @@
 import logging
 import time
+from threading import Timer
 import datetime
 import asyncio
 import re
@@ -44,7 +45,11 @@ class Lista(Prompt):
     prefix = '# '
 
     signindex = 90101
-    sign_line_index = 1
+    # timer_id = 0
+    timer_active = False
+    # loop = asyncio.get_event_loop()
+    # active_timer = None
+    callback_time = 250
 
     syntaxtype = 'buffer'  # 'lista', 'other'
     syntax = ''
@@ -83,6 +88,9 @@ class Lista(Prompt):
         self._buffer = None
         self._indices = None
         self._previous = ''
+
+        # self.timer = Timer(1, self.callback_signs)
+
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
         self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
         self.keymap.register_from_rules(
@@ -176,6 +184,7 @@ class Lista(Prompt):
         # self.nvim.current.buffer.options['syntax'] = self.syntax  # why doesnt?
         self.nvim.command('set syntax=' + self.syntax)  # breaks on vimpager
 
+
         # also want to be able to enter arbitrary filetypes / syntaxes,
         # for stuff like captured output (like :Verbose) etc
 
@@ -242,16 +251,60 @@ class Lista(Prompt):
 
         assign_content(self.nvim, [self._content[i] for i in self._indices])
 
-        if hit_count < 40:
+        # if self.timer_id:
+            # self.nvim.command('call timer_stop(%d)' % self.timer_id)
+        if hit_count < 15:
             self.update_signs(hit_count)
-        else:
-            # else use callback...
-            # timer =
-            self.update_signs(40)
-
+        elif hit_count > 0 and hit_count != self._line_count:
+            pass
+            # self.timer.cancel()
+            # self.timer = Timer(1, self.callback_signs)
+            # self.timer = Timer(1, self.nvim.async_call(self.callback_signs()))
+            # self.timer.start()
+            # # self.loop = asyncio.get_event_loop()
+            # # loop.run_until_complete(self.timer_signs())
+            # # loop.call_later(0.25, self.timer_signs())
+            # if self.active_timer:
+            #     self.active_timer.cancel()
+            # # self.active_timer = self.loop.call_later(0.25, self.update_signs())
+            # self.active_timer = self.loop.call_later(3.25, self.hurf())
+            # self.active_timer.cancel()
+            # # loop.close()
+            # # self.timer_signs()
+            # # else use callback...
+            # # self.timer_id = self.nvim.command('call timer_start(%d, "<SID>callback_update"' % self.callback_time)
+            # # self.timer_id = self.nvim.command("call timer_start(250, 'lista#start'")
+            # # self.update_signs(15)
+            #
         return super().on_update(status)
 
+    def hurf(self):
+        # self.nvim.current.line = 'fartz'
+        # pass
+        testy = self.nvim.current.buffer.number
+        # self.nvim.command('verbose sign list')
+        # self.nvim.async_call('verbose sign list')
+        # self.nvim.command('sign define ListaLine1 text=1 texthl=GruvboxPurpleSign')
+        # self.nvim.command('sign place 101 line=1 name=ListaLine1 buffer=2')
+
+    def callback_signs(self):
+        self.update_signs(len(self._indices))
+
+    # async def timer_signs(self):
+    #     # await asyncio.sleep(0.25)
+    #     # update_signs(len(self.indices))
+    #     while True:
+    #         if self.timer_active:
+    #             update_signs(len(self._indices))
+    #             self.timer_active = False
+    #             break
+    #         else:
+    #             self.timer_active = True
+    #             await asyncio.sleep(0.25)
+
     def update_signs(self, hit_count):
+        # if hit_count == 0:
+        #     hit_count = len(self._indices)
         height = self.nvim.current.window.height
         if hit_count > height:
             hit_count = height
@@ -268,7 +321,7 @@ class Lista(Prompt):
                 highlight = 'GruvboxOrangeSign'
             elif index > 299:
                 highlight = 'GruvboxRedSign'
-            index_text = str(index + 1)[:2]
+            index_text = str(index + 1)[2:]
 
             signdef = 'sign define ListaLine%d text=%s texthl=%s' % (
                 index + 1, index_text, highlight)
@@ -276,7 +329,9 @@ class Lista(Prompt):
             signplace = 'sign place %d line=%d name=ListaLine%d buffer=%d' % (
                 self.signindex + dummybufline, dummybufline + 1, index + 1, bufnum)
             self.nvim.command(signplace)
-        self.nvim.command('silent! verbose sign place')
+        # self.nvim.command('silent! verbose sign place')
+        # if self.loop:
+        # self.loop.close()
 
 
     def on_term(self, status):

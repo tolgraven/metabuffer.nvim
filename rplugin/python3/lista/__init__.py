@@ -14,9 +14,14 @@ try:
         def resume(self, args):
             return start(self.nvim, args, True)
 
-        @neovim.autocmd('CursorHoldI', sync=True)
-        def cursorhold(self, args):
-            return cursorhold(self.nvim, args, True)
+        # yeah ok doesnt work on cmdline duh
+        # @neovim.autocmd('CursorHold', sync=True)
+        # def cursorhold(self, args):
+        #     return cursorhold(self.nvim, args, True)
+
+        @neovim.function('_lista_callback_signs', sync=True)
+        def callback_signs(self, args):
+            return callback_signs(self.nvim, args, True)
 
 except ImportError:
     pass
@@ -48,7 +53,7 @@ def start(nvim, args, resume):
         nvim.current.buffer.vars['_lista_context'] = lista.store()._asdict()
     except Exception as e:
         from .prompt.util import ESCAPE_ECHO
-        lista.on_term(status)  # still need to clean up hey...
+        # lista.on_term(status)  # still need to clean up hey...
         # doesnt seem to help tho, on throw/crasch it still often ends up with
         # a fucked scratch buffer occupying the window
         nvim.command('redraw')
