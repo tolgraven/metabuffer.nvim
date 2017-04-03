@@ -1,4 +1,7 @@
 import logging
+import time
+import datetime
+import asyncio
 import re
 from collections import namedtuple
 from lista.prompt.prompt import (  # type: ignore
@@ -116,7 +119,7 @@ class Lista(Prompt):
         elif self.syntaxtype != 'buffer' and self.bufsyntax != 'lista':
             self.syntaxtype = 'buffer'
             self.syntax = self.bufsyntax
-
+        self.nvim.command('set syntax=' + self.syntax)
         self._previous = ''
 
     def get_ignorecase(self):
@@ -237,30 +240,43 @@ class Lista(Prompt):
         else:
             self.matcher.current.remove_highlight()
 
-        # might be good to limit to if syntax has changed I guess hmm
-        self.nvim.command('set syntax=' + self.syntax)
-
         assign_content(self.nvim, [self._content[i] for i in self._indices])
-        #UGH SO DUMB obvs was breaking because replaced content AFTER setting signs... gah
+
+        if hit_count < 40:
+            self.update_signs(hit_count)
+        else:
+            # else use callback...
+            # timer =
+            self.update_signs(40)
+
+        return super().on_update(status)
+
+    def update_signs(self, hit_count):
         height = self.nvim.current.window.height
         if hit_count > height:
             hit_count = height
-        # if hit_count < 50:
         bufnum = self.nvim.current.buffer.number
 
         for dummybufline in range(0, hit_count):
             index = self._indices[dummybufline]
             # maybe better to only define signs if they dont already exist
 # but ill optimize after if needed
-            signdef = 'sign define ListaLine%d text=%d texthl=GruvboxPurpleSign' % (
-                index + 1, index + 1)
+            highlight = 'GruvboxPurpleSign'
+            if index > 99:
+                highlight = 'GruvboxYellowSign'
+            elif index > 199:
+                highlight = 'GruvboxOrangeSign'
+            elif index > 299:
+                highlight = 'GruvboxRedSign'
+            index_text = str(index + 1)[:2]
+
+            signdef = 'sign define ListaLine%d text=%s texthl=%s' % (
+                index + 1, index_text, highlight)
             self.nvim.command(signdef)
             signplace = 'sign place %d line=%d name=ListaLine%d buffer=%d' % (
                 self.signindex + dummybufline, dummybufline + 1, index + 1, bufnum)
             self.nvim.command(signplace)
-        # self.nvim.command('silent! verbose sign place')
-
-        return super().on_update(status)
+        self.nvim.command('silent! verbose sign place')
 
 
     def on_term(self, status):

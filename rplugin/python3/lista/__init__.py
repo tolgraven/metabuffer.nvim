@@ -14,6 +14,10 @@ try:
         def resume(self, args):
             return start(self.nvim, args, True)
 
+        @neovim.autocmd('CursorHoldI', sync=True)
+        def cursorhold(self, args):
+            return cursorhold(self.nvim, args, True)
+
 except ImportError:
     pass
 
