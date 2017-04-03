@@ -1,3 +1,4 @@
+import logging
 import re
 from collections import namedtuple
 from lista.prompt.prompt import (  # type: ignore
@@ -9,6 +10,8 @@ from .indexer import Indexer
 from .matcher.all import Matcher as AllMatcher
 from .matcher.fuzzy import Matcher as FuzzyMatcher
 from .util import assign_content
+
+logging.basicConfig(filename='/Users/tolgraven/lista.log', level=logging.DEBUG)
 
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
 
@@ -36,17 +39,28 @@ class Lista(Prompt):
     """Lista class."""
 
     prefix = '# '
-    syntax = 'buffer'  # 'lista'
+
+    signindex = 90101
+    sign_line_index = 1
+
+    syntaxtype = 'buffer'  # 'lista', 'other'
+    syntax = ''
     bufsyntax = ''
 
+    # until figure out how to fetch the keymap back properly
+    key_matcher = 'C-^'
+    key_case = 'C-_'
+    key_syntax = 'C-s'
+
     statusline = ''.join([
-        '%%#ListaStatuslineMode%s# %s ',
-        '%%#ListaStatuslineFile# %s ',
-        '%%#ListaStatuslineIndicator# %d/%d ',
+        '%%#ListaStatuslineIndicator## %%#ListaStatuslineQuery#%s',
+        '%%#ListaStatuslineFile# %s',
+        '%%#ListaStatuslineIndicator# %d/%d',
         '%%#ListaStatuslineMiddle#%%=',
-        '%%#ListaStatuslineMatcher# Matcher: %s (C-^ to switch) ',
-        '%%#ListaStatuslineMatcher# Case: %s (C-_) ',
-        '%%#ListaStatuslineMatcher# Syntax: %s (C-s) ',
+        '%%#ListaStatuslineMode%s# %s ',
+        '%%#ListaStatuslineMatcher%s# %s %%#ListaStatuslineKey#%s',
+        '%%#ListaStatuslineCase%s# %s %%#ListaStatuslineKey#%s',
+        '%%#ListaStatuslineSyntax%s# %s %%#ListaStatuslineKey#%s ',
     ])
 
     selected_index = 0
@@ -72,6 +86,7 @@ class Lista(Prompt):
             nvim,
             nvim.vars.get('lista#custom_mappings', [])
         )
+        # self.keymap...  # something to get switcher bindings for statusline
         self.highlight_group = nvim.vars.get('lista#highlight_group')
         if not self.highlight_group:
             self.highlight_group = 'Search'
@@ -95,10 +110,13 @@ class Lista(Prompt):
         self._previous = ''
 
     def switch_highlight(self):
-        if self.syntax != 'lista':
+        if self.syntaxtype != 'lista':
+            self.syntaxtype = 'lista'
             self.syntax = 'lista'
-        else:
+        elif self.syntaxtype != 'buffer' and self.bufsyntax != 'lista':
+            self.syntaxtype = 'buffer'
             self.syntax = self.bufsyntax
+
         self._previous = ''
 
     def get_ignorecase(self):
@@ -111,6 +129,8 @@ class Lista(Prompt):
 
     def on_init(self):
         self._buffer = self.nvim.current.buffer
+        # line below prob causing the manpage issues? since they have 
+        # like weird socket names
         self._buffer_name = self.nvim.eval('simplify(expand("%:~:."))')
         self._content = list(map(
             lambda x: ANSI_ESCAPE.sub('', x),
@@ -123,14 +143,16 @@ class Lista(Prompt):
         foldcolumn = self.nvim.current.window.options['foldcolumn']
         number = self.nvim.current.window.options['number']
         relativenumber = self.nvim.current.window.options['relativenumber']
+        wrap = self.nvim.current.window.options['wrap']
         self.bufsyntax = self.nvim.current.buffer.options['syntax']
         if not self.bufsyntax:
-            self.bufsyntax = 'lista'  # safety
+            self.bufsyntax = 'lista'
+            self.syntax = 'lista'
+            self.syntaxtype = 'lista'
 
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
-# 'nofile' seems to cause errors "buffer already exists" in like, man page
-        self.nvim.current.buffer.options['buftype'] = 'nowrite'
+        self.nvim.current.buffer.options['buftype'] = 'nofile'  # or nowrite?
         self.nvim.current.buffer.options['bufhidden'] = 'wipe'
         self.nvim.current.buffer.options['buflisted'] = False
         self.nvim.current.window.options['spell'] = False
@@ -138,16 +160,22 @@ class Lista(Prompt):
         self.nvim.current.window.options['foldcolumn'] = foldcolumn
         self.nvim.current.window.options['colorcolumn'] = ''
         self.nvim.current.window.options['cursorline'] = True
+        self.nvim.current.window.options['cursorcolumn'] = False
+        self.nvim.current.window.options['wrap'] = wrap
         self.nvim.current.window.options['number'] = number
         self.nvim.current.window.options['relativenumber'] = relativenumber
+        self.nvim.command('sign define ListaDummy')
+        self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % (
+            self.nvim.current.buffer.number))
 
         if self.syntax != 'lista':
             self.syntax = self.bufsyntax
-        self.nvim.current.buffer.options['syntax'] = self.syntax
-        #also want to be able to enter arbitrary filetypes / syntaxes, 
-        #for stuff like captured output (like :Verbose) etc
- 
-        # self.nvim.current.buffer.options['modifiable'] = True
+        # self.nvim.current.buffer.options['syntax'] = self.syntax  # why doesnt?
+        self.nvim.command('set syntax=' + self.syntax)  # breaks on vimpager
+
+        # also want to be able to enter arbitrary filetypes / syntaxes,
+        # for stuff like captured output (like :Verbose) etc
+
         self.nvim.call('cursor', [self.selected_index + 1, 0])
         self.nvim.command('normal! zvzz')
         return super().on_init()
@@ -166,14 +194,16 @@ class Lista(Prompt):
             case_name = 'smart'
 
         self.nvim.current.window.options['statusline'] = self.statusline % (
-            insert_mode_name.capitalize(),
-            insert_mode_name.upper(),
-            self._buffer_name,
-            len(self._indices),
-            self._line_count,
-            self.matcher.current.name,
-            case_name,
-            self.syntax,
+            self.text,
+            self._buffer_name.split('/')[-1],
+            len(self._indices), self._line_count,
+            insert_mode_name.capitalize(), insert_mode_name.upper()[:1],
+            self.matcher.current.name.capitalize(),
+            self.matcher.current.name, self.key_matcher,
+            case_name.capitalize(),
+            case_name, self.key_case,
+            self.syntaxtype.capitalize(),
+            self.syntax, self.key_syntax,
         )
         self.nvim.command('redrawstatus')
         return super().on_redraw()
@@ -199,13 +229,39 @@ class Lista(Prompt):
             self._content[:],
             ignorecase,
         )
-        if len(self._indices) < 1000:
-            self.matcher.current.highlight(self.text, ignorecase, self.highlight_group)
+        hit_count = len(self._indices)
+        if hit_count < 1000:
+            self.matcher.current.highlight(self.text,
+                                           ignorecase,
+                                           self.highlight_group)
         else:
             self.matcher.current.remove_highlight()
-        self.nvim.current.buffer.options['syntax'] = self.syntax
+
+        # might be good to limit to if syntax has changed I guess hmm
+        self.nvim.command('set syntax=' + self.syntax)
+
         assign_content(self.nvim, [self._content[i] for i in self._indices])
+        #UGH SO DUMB obvs was breaking because replaced content AFTER setting signs... gah
+        height = self.nvim.current.window.height
+        if hit_count > height:
+            hit_count = height
+        # if hit_count < 50:
+        bufnum = self.nvim.current.buffer.number
+
+        for dummybufline in range(0, hit_count):
+            index = self._indices[dummybufline]
+            # maybe better to only define signs if they dont already exist
+# but ill optimize after if needed
+            signdef = 'sign define ListaLine%d text=%d texthl=GruvboxPurpleSign' % (
+                index + 1, index + 1)
+            self.nvim.command(signdef)
+            signplace = 'sign place %d line=%d name=ListaLine%d buffer=%d' % (
+                self.signindex + dummybufline, dummybufline + 1, index + 1, bufnum)
+            self.nvim.command(signplace)
+        # self.nvim.command('silent! verbose sign place')
+
         return super().on_update(status)
+
 
     def on_term(self, status):
         self.matcher.current.remove_highlight()

@@ -17,3 +17,29 @@ endif
 if !exists('g:lista#custom_mappings')
   let g:lista#custom_mappings = []
 endif
+if !exists('g:lista#highlight_group')
+	let g:lista#highlight_group = 'Title'
+endif
+
+"need these globally so dont need lista syntax to use them...
+highlight default link ListaStatuslineModeInsert  	Define
+highlight default link ListaStatuslineModeReplace 	Todo
+
+highlight default link ListaStatuslineQuery  				Normal
+
+highlight default link ListaStatuslineFile        	Comment
+highlight default link ListaStatuslineMiddle      	None
+
+highlight default link ListaStatuslineMatcherAll   	Statement
+highlight default link ListaStatuslineMatcherFuzzy  Number
+
+highlight default link ListaStatuslineCaseSmart     String
+highlight default link ListaStatuslineCaseIgnore    Special
+highlight default link ListaStatuslineCaseNormal    Normal
+
+highlight default link ListaStatuslineSyntaxBuffer 	Normal
+highlight default link ListaStatuslineSyntaxLista 	Number
+
+highlight default link ListaStatuslineIndicator   	Tag
+highlight default link ListaStatuslineKey   				Comment
+
