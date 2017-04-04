@@ -232,8 +232,8 @@ class Lista(Prompt):
             self.nvim.call('cursor', [1, self.nvim.current.window.cursor[1]])
         # elif keythatactuallydoesanything:
 
-        else:
-            return
+        # else:
+        #     return
 
         ignorecase = self.get_ignorecase()
         self.matcher.current.filter(
