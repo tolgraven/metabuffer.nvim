@@ -43,6 +43,7 @@ def start(nvim, args, resume):
                 selected_index=nvim.current.window.cursor[0] - 1,
                 matcher_index=0,
                 case_index=0,
+                syntax_state = {'type': '', 'active': '', 'buffer_orig': ''},
             )
         lista = Lista(nvim, condition)
         status = lista.start()
@@ -53,10 +54,11 @@ def start(nvim, args, resume):
         nvim.current.buffer.vars['_lista_context'] = lista.store()._asdict()
     except Exception as e:
         from .prompt.util import ESCAPE_ECHO
-        # lista.on_term(status)  # still need to clean up hey...
-        # doesnt seem to help tho, on throw/crasch it still often ends up with
-        # a fucked scratch buffer occupying the window
+        # still need to clean up hey...
+        # on throw/crasch it still mostly ends up with
+        # a fucked dangling scratch buffer occupying the window
         nvim.command('redraw')
+        nvim.command('redrawstatus')
         nvim.command('echohl ErrorMsg')
         for line in traceback.format_exc().splitlines():
             nvim.command('echomsg "%s"' % line.translate(ESCAPE_ECHO))

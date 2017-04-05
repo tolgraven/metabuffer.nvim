@@ -20,8 +20,11 @@ endif
 if !exists('g:lista#custom_mappings')
   let g:lista#custom_mappings = []
 endif
-if !exists('g:lista#highlight_group')
-	let g:lista#highlight_group = 'Title'
+if !exists('g:lista#highlight_groups')
+	let g:lista#highlight_groups = {'lista': 'Title', 'buffer': 'ListaSearchHitBuffer'}
+endif
+if !exists('g:lista#syntax_init')
+	let g:lista#syntax_init = 'buffer'
 endif
 
 "need these globally so dont need lista syntax to use them...
@@ -33,7 +36,7 @@ highlight default link ListaStatuslineQuery  				Normal
 highlight default link ListaStatuslineFile        	Comment
 highlight default link ListaStatuslineMiddle      	None
 
-highlight default link ListaStatuslineMatcherAll   	Tag
+highlight default link ListaStatuslineMatcherAll   	Statement
 highlight default link ListaStatuslineMatcherFuzzy  Number
 
 highlight default link ListaStatuslineCaseSmart     String
@@ -43,6 +46,17 @@ highlight default link ListaStatuslineCaseNormal    Normal
 highlight default link ListaStatuslineSyntaxBuffer 	Normal
 highlight default link ListaStatuslineSyntaxLista 	Number
 
-highlight default link ListaStatuslineIndicator   	Statement
+highlight default link ListaStatuslineIndicator   	Tag
 highlight default link ListaStatuslineKey   				Comment
 
+highlight default link ListaSignAqua							  GruvboxAquaSign 
+highlight default link ListaSignBlue							  GruvboxBlueSign  
+highlight default link ListaSignPurple						  GruvboxPurpleSign
+highlight default link ListaSignGreen  						  GruvboxGreenSign 
+highlight default link ListaSignYellow						  GruvboxYellowSign
+highlight default link ListaSignOrange						  GruvboxOrangeSign
+highlight default link ListaSignRed								  GruvboxRedSign
+
+highlight ListaSearchHitBuffer 		cterm=reverse,bold 	guibg=#799ca1 guifg=#282828
+highlight default link ListaSearchHitFuzzy					ListaStatuslineMatcherFuzzy
+" gui=bold,underline
