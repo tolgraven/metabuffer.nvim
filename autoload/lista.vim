@@ -57,6 +57,7 @@ highlight default link ListaSignYellow						  GruvboxYellowSign
 highlight default link ListaSignOrange						  GruvboxOrangeSign
 highlight default link ListaSignRed								  GruvboxRedSign
 
-highlight ListaSearchHitBuffer 		cterm=reverse,bold 	guibg=#799ca1 guifg=#282828
+" highlight ListaSearchHitBuffer 		cterm=reverse,bold 	guibg=#799ca1 guifg=#282828
+highlight ListaSearchHitBuffer 		cterm=bold gui=italic	guibg=#181818 guifg=#99b9e5
 highlight default link ListaSearchHitFuzzy					ListaStatuslineMatcherFuzzy
 " gui=bold,underline

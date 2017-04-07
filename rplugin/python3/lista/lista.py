@@ -19,20 +19,11 @@ ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
 CASE_SMART = 1
 CASE_IGNORE = 2
 CASE_NORMAL = 3
-
-CASES = (
-    CASE_SMART,
-    CASE_IGNORE,
-    CASE_NORMAL,
-)
+CASES = ( CASE_SMART, CASE_IGNORE, CASE_NORMAL,)
 
 SYNTAX_BUFFER = 0
 SYNTAX_BUILTIN = 1
-
-SYNTAXES = (
-    SYNTAX_BUFFER,
-    SYNTAX_BUILTIN,
-)
+SYNTAXES = ( SYNTAX_BUFFER, SYNTAX_BUILTIN,)
 
 Condition = namedtuple('Condition', [
     'text',
@@ -51,16 +42,12 @@ class Lista(Prompt):
 
     sign_id_start = 90101
     signs_defined = [0]
-    # timer_id = 0
     timer_active = False
     loop = asyncio.get_event_loop()
-    # active_timer = None
     callback_time = 250
 
     syntax_types = ['buffer', 'lista']
-    # syntax_state = {'type': syntax_types[SYNTAX_BUFFER], 'active': '', 'buffer_orig': ''}
     syntax_state = {'type': '', 'active': '', 'buffer_orig': ''}
-    # syntax_state = {'type': syntax_types[0], 'active': '', 'buffer_orig': ''}
 
     hotkey = {'matcher': 'C-^', 'case': 'C-_', 'syntax': 'C-s' }  # until figure out how to fetch the keymap back properly
 
@@ -93,7 +80,7 @@ class Lista(Prompt):
         self._buffer = None
         self._indices = None
         self._previous = ''
-        self._previous_hits = 0
+        self._previous_hit_count = 0
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
         self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
         self.keymap.register_from_rules(nvim, nvim.vars.get('lista#custom_mappings', []))
@@ -156,7 +143,8 @@ class Lista(Prompt):
         wrap = self.nvim.current.window.options['wrap']
         self.syntax_state['buffer_orig'] = self.nvim.current.buffer.options['syntax']
         if not self.syntax_state['buffer_orig']:  #something went wrong getting syntax from vim, use strictly lista's own
-            self.syntax_state['buffer_orig'], self.syntax_state['active'], self.syntax_state['type'] = \
+            # self.syntax_state['buffer_orig'], self.syntax_state['active'], self.syntax_state['type'] = \
+            self.syntax_state['buffer_orig', 'active', 'type'] = \
             self.syntax_types[SYNTAX_BUILTIN], self.syntax_types[SYNTAX_BUILTIN], self.syntax_types[SYNTAX_BUILTIN]
 
         self.nvim.command('noautocmd keepjumps enew')
@@ -217,7 +205,6 @@ class Lista(Prompt):
             self._buffer_name.split('/')[-1],               # filename without path
             len(self._indices), self._line_count,           # hits / lines
             line_index + 1,                                  # line under crusor
-            # insert_mode_name.capitalize(), insert_mode_name.upper()[:1],
             self.matcher.current.name.capitalize(), self.matcher.current.name, self.hotkey['matcher'],
             case_name.capitalize(), case_name, self.hotkey['case'],
             self.syntax_state['type'].capitalize(), self.syntax_state['active'], self.hotkey['syntax'],
@@ -226,27 +213,24 @@ class Lista(Prompt):
         return super().on_redraw()
 
     def on_update(self, status):
-        previous = self._previous
-        self._previous = self.text
-        previous_hits = len(self._indices)
+        previous, self._previous = self._previous, self.text
+        previous_hit_count = len(self._indices)
 
-        if not previous or not self.text.startswith(previous):  # new, restarted or backgracking
-            self._indices = list(range(self._line_count))  #reset index list
-            if previous and self.text:  #if we didnt delete the last char?
+        if not previous or not self.text.startswith(previous):  # new, restarted or backtracking
+            self._indices = list(range(self._line_count))       #reset index list
+            if previous and self.text:                          #if we didnt delete the last char?
                 self.nvim.call( 'cursor', [1, self.nvim.current.window.cursor[1]])
-        elif previous and previous != self.text:  #if query has changed
+        elif previous and previous != self.text:                #if query has changed
             self.nvim.call('cursor', [1, self.nvim.current.window.cursor[1]])
         # elif keythatactuallydoesanything:
         # else:
             # update_signs = False  #welp no use all get cleared rememeber
-
         ignorecase = self.get_ignorecase()
         self.matcher.current.filter(
             self.text,
             self._indices,
             self._content[:],
-            ignorecase,
-        )
+            ignorecase)
         hit_count = len(self._indices)
         if hit_count < 1000:
             syn_type = self.syntax_state['type'] or 'buffer'
@@ -255,7 +239,7 @@ class Lista(Prompt):
                                            # self.highlight_groups[self.syntax_state['type']])
         else:
             self.matcher.current.remove_highlight()
-        if previous_hits != hit_count:
+        if previous_hit_count != hit_count:  # should use more robust check...
             assign_content(self.nvim, [self._content[i] for i in self._indices])
             self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1...
             self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % self.nvim.current.buffer.number)
@@ -290,10 +274,8 @@ class Lista(Prompt):
 
         return super().on_update(status)
 
-
     def callback_signs(self):
         self.update_signs(len(self._indices))
-
     # NOTE: need to: put timer on other thread
     # then callback needs to do nvim.async_call, passing a python function on the main thread
 
@@ -316,25 +298,16 @@ class Lista(Prompt):
 
         signs_placed = []
 
-        for hit_line_index in range(0, min(hit_count, win_height)):
+        for hit_line_index in range(min(hit_count, win_height)):
             source_line_nr = self._indices[hit_line_index] + 1
 
             if source_line_nr not in self.signs_defined:
-                highlight = 'Normal'
-                if source_line_nr < 99:
-                    highlight = 'ListaSignAqua'
-                elif source_line_nr < 199:
-                    highlight = 'ListaSignBlue'
-                elif source_line_nr < 299:
-                    highlight = 'ListaSignPurple'
-                elif source_line_nr < 399:
-                    highlight = 'ListaSignGreen'
-                elif source_line_nr < 499:
-                    highlight = 'ListaSignYellow'
-                elif source_line_nr < 599:
-                    highlight = 'ListaSignOrange'
-                elif source_line_nr < 699:
-                    highlight = 'ListaSignRed'
+                base = 'ListaSign'
+                colors = ['Aqua', 'Blue', 'Purple', 'Green', 'Yellow', 'Orange', 'Red']
+                colors = [base + color for color in colors]
+                highlight = next(
+                    (colors[x] for x in range(len(colors)) if x*100 + 99 >= source_line_nr),
+                    'Normal')
                 index_text = str(source_line_nr)[-2:]  # 2: was causing the issue all along. how get right numbers?
 
                 sign_to_define = 'sign define ListaLine%d text=%s texthl=%s' % (
