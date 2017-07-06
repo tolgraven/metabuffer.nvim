@@ -47,4 +47,5 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-_>', '<lista:switch_case>', 'noremap'),
     ('<C-->', '<lista:switch_case>', 'noremap'),
     ('<C-S>', '<lista:switch_highlight>', 'noremap'),
+    ('<Esc><Esc>', '<lista:pause>', 'noremap'),
 ]
