@@ -1,7 +1,7 @@
 import time
 # from threading import Timer
 # import datetime
-import asyncio
+# import asyncio
 import re
 from collections import namedtuple
 from lista.prompt.prompt import (  # type: ignore
@@ -24,7 +24,11 @@ CASES = ( CASE_SMART, CASE_IGNORE, CASE_NORMAL,)
 SYN_BUFFER = 0
 SYN_BUILTIN = 1
 SYNTAXES = ( SYN_BUFFER, SYN_BUILTIN,)
-syntax_types = ['buffer', 'lista']
+syntax_types = ['buffer', 'lista']  #will this ever be the extent of it with
+# matchadd covering the rest, or can I come up with new categories? there is some
+# way of combining properties of multiple syntax that I read about, look up.
+# Ideal ofc if individual files of varying filetypes can each coexist properly
+# highlighted within the metabuffer
 
 Condition = namedtuple('Condition', [
     'text',
@@ -82,7 +86,6 @@ class Lista(Prompt):
         self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
         self.keymap.register_from_rules(nvim, nvim.vars.get('lista#custom_mappings', []))
         # self.keymap...  # something to get switcher bindings for statusline. Just parse out as str
-        # self.keymap.
         self.highlight_groups = nvim.vars.get('lista#highlight_groups', {})
         # self.syntax_state['active'] = nvim.vars.get('lista#syntax_init') or 'buffer'
         self.signs_enabled = nvim.vars.get('lista#line_nr_in_sign_column') or False
@@ -198,7 +201,7 @@ class Lista(Prompt):
         elif self.syntax.current is SYN_BUILTIN:
           hl_prefix, syntax_name = 'Lista', 'lista'
 
-        line_index = (self.selected_index or 0)
+        line_index = (self.selected_index or 0)   #will always have just one main cursor but important to implement tagging of lines etc
         self.nvim.current.window.options['statusline'] = self.statusline % (
             insert_mode_name.capitalize(), prefix, self.text,
             self._buffer_name.split('/')[-1],               # filename without path
@@ -321,7 +324,7 @@ class Lista(Prompt):
 
 
     def on_term(self, status):
-        self.matcher.current.remove_highlight()
+        self.matcher.current.remove_highlight()   #not on pause?
         self.nvim.command('echo "%s" | redraw' % (
             '\n' * self.nvim.options['cmdheight']
         ))
@@ -329,14 +332,24 @@ class Lista(Prompt):
         self.matcher_index = self.matcher.index
         self.case_index = self.case.index
         self.syntax_index = self.syntax.index
-        self.nvim.current.buffer.options['modified'] = False
+        self.nvim.current.buffer.options['modified'] = False  #do we leave a
+        # filtered dummy buffer as modified and hence revertible? not really
+        # feasible or necessary since reverting ought to imply wiping the
+        # scratch. But I think a buffer that has been paused, and then isn't
+        # resumed but just has a new instance ran on top of it, should have that
+        # filtered selection as a starting point, treated like any other buffer -
+        # BUT that's where you tart requiring metadata for every single line...
+        # hmm. Especially if you go back and forth between filtering and actual
+        # editing...
+
+        # this one def not when pausing...
         self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
         if self.text:
-            ignorecase = self.get_ignorecase()
-            caseprefix = '\c' if ignorecase else '\C'
+            caseprefix = '\c' if self.get_ignorecase() else '\C'
             pattern = self.matcher.current.get_highlight_pattern(self.text)
             self.searchcommand = 'setreg / ' + caseprefix + pattern
             # self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N. Could set so auto-hl's only if pressed enter, not esc
+
 
             #when multiple search words we really should use matchadd() too tho # to separate multiple terms. Plus that add the possibility
             # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.
