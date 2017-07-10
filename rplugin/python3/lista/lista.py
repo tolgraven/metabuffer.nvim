@@ -32,7 +32,7 @@ Condition = namedtuple('Condition', [
     'selected_index',
     'matcher_index',
     'case_index',
-    'syntax_state'
+    'syntax_index'
 ])
 
 
@@ -40,8 +40,6 @@ class Lista(Prompt):
     """Lista class."""
 
     prefix = '# '
-
-
     hotkey = {'matcher': 'C-^', 'case': 'C-_', 'syntax': 'C-s' }  # until figure out how to fetch the keymap back properly
 
     statusline = ''.join([
@@ -74,7 +72,6 @@ class Lista(Prompt):
         self._previous = ''
 
         self._previous_hit_count = 0
-        self.syntax_state = {'type': '', 'active': '', 'buffer_orig': ''}
         self.sign_id_start = 90101
         self.signs_defined = []
         self.timer_active = False
@@ -87,7 +84,7 @@ class Lista(Prompt):
         # self.keymap...  # something to get switcher bindings for statusline. Just parse out as str
         # self.keymap.
         self.highlight_groups = nvim.vars.get('lista#highlight_groups', {})
-        self.syntax_state['type'] = nvim.vars.get('lista#syntax_init') or 'buffer'
+        # self.syntax_state['active'] = nvim.vars.get('lista#syntax_init') or 'buffer'
         self.signs_enabled = nvim.vars.get('lista#line_nr_in_sign_column') or False
         self.restore(condition)
 
@@ -109,21 +106,10 @@ class Lista(Prompt):
         self._previous = ''
 
     def switch_highlight(self):
-        current_type = self.syntax_state['type']
-        builtin = syntax_types[SYN_BUILTIN]
-        buf = syntax_types[SYN_BUFFER]
-        # active, orig = self.syntax_state['active', 'buffer_orig']
-        active = self.syntax_state['active']
-        orig = self.syntax_state['buffer_orig']
+        self.syntax.next()
+        new_syntax = 'lista' if self.syntax.current is SYN_BUILTIN else self.buffer_syntax
 
-        if current_type != builtin:
-            current_type, active = builtin, builtin
-        elif current_type != buf and orig != builtin:
-            current_type, active = buf, orig
-        else:
-            self.nvim.command('echoerr ' + 'FAILURE')
-            return
-        self.nvim.command('set syntax=' + self.syntax_state['active'])
+        self.nvim.command('set syntax=' + new_syntax)
         self._previous = ''
 
     def get_ignorecase(self):
@@ -133,6 +119,9 @@ class Lista(Prompt):
             return False
         elif self.case.current is CASE_SMART:
             return not any(c.isupper() for c in self.text)
+
+    def get_searchcommand(self):
+        return self.searchcommand
 
     def on_init(self):
         self._buffer = self.nvim.current.buffer
@@ -157,7 +146,7 @@ class Lista(Prompt):
 
         #might nerdtree etc work if keep conceal active?
         conceallevel = self.nvim.current.window.options['conceallevel']
-        self.syntax_state['buffer_orig'] = self.nvim.current.buffer.options['syntax']
+        self.buffer_syntax = self.nvim.current.buffer.options['syntax']
 
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
@@ -171,18 +160,16 @@ class Lista(Prompt):
             self.nvim.current.buffer.options[opt] = val
         for opt,val in win_opts.items():
             self.nvim.current.window.options[opt] = val
-        # was thinking toggle off number if relative set, gets a bit in the way but still important to have so, no.
         self.nvim.command('sign define ListaDummy')
-        if self.signs_enabled:
+        if self.signs_enabled:  #should also place dummy if there were signs placed/signcolumn visible, so layout stays the same
           self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % (
               self.nvim.current.buffer.number))
-        builtin = syntax_types[SYN_BUILTIN]
-        if not self.syntax_state['buffer_orig']:  #something went wrong getting syntax from vim, use strictly lista's own
-            self.syntax_state['buffer_orig', 'active', 'type'] = builtin, builtin, builtin
-        if self.syntax_state['active'] != builtin:
-            self.syntax_state['active'] = self.syntax_state['buffer_orig']
-        self.nvim.command('set syntax=' + self.syntax_state['active'])  # breaks on vimpager
 
+        if not self.buffer_syntax:  #something went wrong getting syntax from vim, use strictly lista's own
+            self.buffer_syntax = syntax_types[SYN_BUILTIN]
+            self.syntax.index = SYN_BUILTIN
+        self.nvim.command('set syntax=' + self.buffer_syntax)  #init at index 0 = buffer, for now. Consistent with the others, but can't be hardset later when more appear
+        # need to set syntax up here instead of on_redraw like the other stuff, dont want to set that every time, only on changes, right?
         self.nvim.call('cursor', [self.selected_index + 1, 0])
         self.nvim.command('normal! zvzz')
 
@@ -192,7 +179,7 @@ class Lista(Prompt):
 
     def on_redraw(self):
         prefix = self.prefix
-        if self.insert_mode == INSERT_MODE_INSERT:
+        if self.insert_mode is INSERT_MODE_INSERT:
             insert_mode_name = 'insert'
             prefix = '# '
         else:
@@ -203,24 +190,24 @@ class Lista(Prompt):
             case_name = 'ignore'
         elif self.case.current == CASE_NORMAL:
             case_name = 'normal'
-        elif self.case.current == CASE_SMART:
+        elif self.case.current == CASE_SMART:   
             case_name = 'smart'
 
-        # line_selected = self.selected_line if self.selected_index else 1
-        # line_index = 0
-        # if self.selected_index:
-        #     line_index = self.selected_index  # just need to protect it first run or throws...
-        # line_index = (self.selected_index if self.selected_index else 0)
-        line_index = (self.selected_index or 0)
+        if self.syntax.current is SYN_BUFFER:
+          hl_prefix, syntax_name = 'Buffer', self.buffer_syntax
+        elif self.syntax.current is SYN_BUILTIN:
+          hl_prefix, syntax_name = 'Lista', 'lista'
 
+        line_index = (self.selected_index or 0)
         self.nvim.current.window.options['statusline'] = self.statusline % (
             insert_mode_name.capitalize(), prefix, self.text,
             self._buffer_name.split('/')[-1],               # filename without path
             len(self._indices), self._line_count,           # hits / lines
-            line_index + 1,                                  # line under crusor
+            # line_index + 1,                                 # line under cruisor
+            (self.selected_index or 0) + 1,                 # line under cruisor
             self.matcher.current.name.capitalize(), self.matcher.current.name, self.hotkey['matcher'],
             case_name.capitalize(), case_name, self.hotkey['case'],
-            self.syntax_state['type'].capitalize(), self.syntax_state['active'], self.hotkey['syntax'],
+            hl_prefix, syntax_name, self.hotkey['syntax'],
         )
         self.nvim.command('redrawstatus')
         return super().on_redraw()
@@ -240,10 +227,10 @@ class Lista(Prompt):
             self.text, self._indices, self._content[:], ignorecase)
         hit_count = len(self._indices)
         if hit_count < 1000:
-            syn_type = self.syntax_state['type'] or 'buffer'
-            hl = self.highlight_groups[syn_type]
-            self.matcher.current.highlight(self.text, ignorecase, hl)
-                                           # self.highlight_groups[self.syntax_state['type']])
+          syn = syntax_types[SYN_BUFFER] if self.syntax.current is SYN_BUFFER \
+                                       else syntax_types[SYN_BUILTIN]
+          hl = self.highlight_groups[syn]
+          self.matcher.current.highlight(self.text, ignorecase, hl)  #highlights instances with the appropriate highlighting group
         else:
             self.matcher.current.remove_highlight()
         if previous_hit_count != hit_count:  # should use more robust check since we can of course end up with same amount, but different hits
@@ -341,18 +328,18 @@ class Lista(Prompt):
         self.selected_index = self.nvim.current.window.cursor[0] - 1
         self.matcher_index = self.matcher.index
         self.case_index = self.case.index
-        # self.syntax_index = self.syntax_state[]
+        self.syntax_index = self.syntax.index
         self.nvim.current.buffer.options['modified'] = False
         self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
         if self.text:
             ignorecase = self.get_ignorecase()
             caseprefix = '\c' if ignorecase else '\C'
             pattern = self.matcher.current.get_highlight_pattern(self.text)
-            self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N
-            #when multiple search words we really should use matchadd() in addition
-            # though to separate, at least somewhat. Plus that add the possibility
-            # of highlighting like that already while filtering, and setting hue 
-            # to match filter-outs and stuff.
+            self.searchcommand = 'setreg / ' + caseprefix + pattern
+            # self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N. Could set so auto-hl's only if pressed enter, not esc
+
+            #when multiple search words we really should use matchadd() too tho # to separate multiple terms. Plus that add the possibility
+            # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.
             # Get on stealing that, fzf was it?, ez-mode regex engine
 
         return status
@@ -365,7 +352,7 @@ class Lista(Prompt):
             selected_index=self.selected_index,
             matcher_index=self.matcher_index,
             case_index=self.case_index,
-            syntax_state=self.syntax_state,
+            syntax_index=self.syntax_index,
         )
 
     def restore(self, condition):
@@ -380,4 +367,6 @@ class Lista(Prompt):
             index=self.matcher_index,
         )
         self.case = Indexer(CASES, index=self.case_index)
-        self.syntax_state = condition.syntax_state
+        self.syntax_index = condition.syntax_index
+        self.syntax = Indexer(SYNTAXES, index=self.syntax_index)
+

@@ -38,8 +38,8 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-N>', '<lista:select_next_candidate>', 'noremap'),
     ('<C-K>', '<lista:select_previous_candidate>', 'noremap'),
     ('<C-J>', '<lista:select_next_candidate>', 'noremap'),
-    ('<Left>', '<lista:select_previous_candidate>', 'noremap'),
-    ('<Right>', '<lista:select_next_candidate>', 'noremap'),
+    ('<Left>', '<lista:move_caret_to_left>', 'noremap'),
+    ('<Right>', '<lista:move_caret_to_right>', 'noremap'),
     ('<S-Tab>', '<lista:select_previous_candidate>', 'noremap'),
     ('<Tab>', '<lista:select_next_candidate>', 'noremap'),
     ('<C-^>', '<lista:switch_matcher>', 'noremap'),
@@ -47,5 +47,6 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-_>', '<lista:switch_case>', 'noremap'),
     ('<C-->', '<lista:switch_case>', 'noremap'),
     ('<C-S>', '<lista:switch_highlight>', 'noremap'),
-    ('<Esc><Esc>', '<lista:pause>', 'noremap'),
+    ('<M-H>', '<lista:switch_highlight>', 'noremap'),
 ]
+    # ('<Esc><Esc>', '<lista:pause>', 'noremap'),

@@ -44,10 +44,10 @@ function! lista#rplugin#init() abort
           \})
     let s:supported = result.python3
     if !s:supported
-      echoerr 'It requires a Neovim or Vim with Python3 support (+python3)'
+      echoerr 'Lista requires a Neovim or Vim with Python3 support (+python3)'
     endif
   catch /^Vim\%((\a\+)\)\=:E117/
-    echoerr 'It requires a lambdalisue/vim-rplugin in Vim8.'
+    echoerr 'Lista requires a lambdalisue/vim-rplugin in Vim8.'
     echoerr 'https://github.com/lambdalisue/vim-rplugin'
     let s:supported = 0
   endtry
