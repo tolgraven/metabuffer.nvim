@@ -33,7 +33,7 @@ DEFAULT_ACTION_RULES = [
 ]
 
 
-pause_prompt = [
+DEFAULT_ACTION_KEYMAP = [
     ('<PageUp>', '<lista:select_previous_candidate>', 'noremap'),
     ('<PageDown>', '<lista:select_next_candidate>', 'noremap'),
     ('<C-A>', '<lista:move_caret_to_head>', 'noremap'),
@@ -58,7 +58,7 @@ pause_prompt = [
     ('<C-->', '<lista:switch_case>', 'noremap'),
     ('<C-S>', '<lista:switch_highlight>', 'noremap'),
     ('<M-H>', '<lista:switch_highlight>', 'noremap'),
-    ('<C-z>', '<lista:pause>', 'noremap'),
+    ('<C-z>', '<lista:_pause_prompt>', 'noremap'),
     ]
 # yank_to_default_register
 # yank_to_register

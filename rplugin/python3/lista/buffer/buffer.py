@@ -23,12 +23,15 @@ class AbstractBuffer(metaclass=ABCMeta):
         self.attributes = {[]}    # the relevant options so that any dummy
         # buffers controlling this buffer behave horrectly, and restore all original options properly.
 #so it'll be like
-        self.syntax =       #all buffers will have a syntax, even if it's "none"
+        # self.syntax =       #all buffers will have a syntax, even if it's "none"
+        # self.vim_id = self.buffer.
                   #for a dummy buffer it will mean the currently active syntax in vim, for a backing buffer it will be its original syntax
 
         # "exceptions" - would be handled through matchers I guess, but easier
         # with like a flag telling the buffer to ignore the operationw that 
         # otherwise would occur on it
+
+        #have alt constructor from scratch, just send contents and whatever nobn-default opts
 
 # Types of buffers:
 # - Regular: vim buffer, as normal. A potential source
@@ -45,7 +48,6 @@ class AbstractBuffer(metaclass=ABCMeta):
         Args:
             text (str): A text string
         """
-        )
 
     @abstractmethod
     def get_highlight_pattern(self, query):

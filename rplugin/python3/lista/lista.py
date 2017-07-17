@@ -79,7 +79,7 @@ class Lista(Prompt):
         self.sign_id_start = 90101
         self.signs_defined = []
         self.timer_active = False
-        self.loop = asyncio.get_event_loop()
+        # self.loop = asyncio.get_event_loop()
         self.callback_time = 250
 
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
@@ -141,15 +141,11 @@ class Lista(Prompt):
         number = self.nvim.current.window.options['number']
         relativenumber = self.nvim.current.window.options['relativenumber']
         wrap = self.nvim.current.window.options['wrap']
-        # win_opts_saved = ['foldcolumn', 'number', 'relativenumber', 'wrap']
-        # for opt in win_opts_saved:
-        #   opt = self.nvim.current.window.options[opt]
         # something like this, but doesnt work this way. so maybe just loop?
         # foldcolumn, number, relativenumber, wrap = self.nvim.current.window.options['foldcolumn', 'number', 'relativenumber', 'wrap']
 
         #might nerdtree etc work if keep conceal active?
         conceallevel = self.nvim.current.window.options['conceallevel']
-        self.buffer_syntax = self.nvim.current.buffer.options['syntax']
 
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
@@ -183,30 +179,20 @@ class Lista(Prompt):
     def on_redraw(self):
         prefix = self.prefix
         if self.insert_mode is INSERT_MODE_INSERT:
-            insert_mode_name = 'insert'
-            prefix = '# '
+            insert_mode_name, prefix = 'insert', '# '
         else:
-            insert_mode_name = 'replace'
-            prefix = 'R '
-
-        if self.case.current == CASE_IGNORE:
-            case_name = 'ignore'
-        elif self.case.current == CASE_NORMAL:
-            case_name = 'normal'
-        elif self.case.current == CASE_SMART:   
-            case_name = 'smart'
-
+            insert_mode_name, prefix = 'replace', 'R '
+        case_name = 'ignore' if self.case.current is CASE_IGNORE else 'normal' if self.case.current is CASE_NORMAL else 'smart'
+        
         if self.syntax.current is SYN_BUFFER:
           hl_prefix, syntax_name = 'Buffer', self.buffer_syntax
         elif self.syntax.current is SYN_BUILTIN:
           hl_prefix, syntax_name = 'Lista', 'lista'
 
-        line_index = (self.selected_index or 0)   #will always have just one main cursor but important to implement tagging of lines etc
         self.nvim.current.window.options['statusline'] = self.statusline % (
             insert_mode_name.capitalize(), prefix, self.text,
             self._buffer_name.split('/')[-1],               # filename without path
             len(self._indices), self._line_count,           # hits / lines
-            # line_index + 1,                                 # line under cruisor
             (self.selected_index or 0) + 1,                 # line under cruisor
             self.matcher.current.name.capitalize(), self.matcher.current.name, self.hotkey['matcher'],
             case_name.capitalize(), case_name, self.hotkey['case'],
@@ -226,8 +212,7 @@ class Lista(Prompt):
         elif previous and previous != self.text:                #if query has changed
             self.nvim.call('cursor', [1, self.nvim.current.window.cursor[1]])
         ignorecase = self.get_ignorecase()
-        self.matcher.current.filter(
-            self.text, self._indices, self._content[:], ignorecase)
+        self.matcher.current.filter( self.text, self._indices, self._content[:], self.get_ignorecase())
         hit_count = len(self._indices)
         if hit_count < 1000:
           syn = syntax_types[SYN_BUFFER] if self.syntax.current is SYN_BUFFER \
@@ -314,7 +299,7 @@ class Lista(Prompt):
                 self.nvim.command(sign_to_define)
                 self.signs_defined.append(source_line_nr)
 
-            # all placed signs get reset to line 1 when content is replaced. 
+            # remember all placed signs get reset to line 1 when content is replaced. 
             sign_to_place = 'sign place %d line=%d name=ListaLine%d buffer=%d' % (
                 self.sign_id_start + hit_line_index, hit_line_index + 1,
                 source_line_nr, buf_nr)
@@ -324,7 +309,7 @@ class Lista(Prompt):
 
 
     def on_term(self, status):
-        self.matcher.current.remove_highlight()   #not on pause?
+        self.matcher.current.remove_highlight()   #not on pause tho I guess?
         self.nvim.command('echo "%s" | redraw' % (
             '\n' * self.nvim.options['cmdheight']
         ))
@@ -347,9 +332,8 @@ class Lista(Prompt):
         if self.text:
             caseprefix = '\c' if self.get_ignorecase() else '\C'
             pattern = self.matcher.current.get_highlight_pattern(self.text)
-            self.searchcommand = 'setreg / ' + caseprefix + pattern
+            self.searchcommand = caseprefix + pattern
             # self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N. Could set so auto-hl's only if pressed enter, not esc
-
 
             #when multiple search words we really should use matchadd() too tho # to separate multiple terms. Plus that add the possibility
             # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.

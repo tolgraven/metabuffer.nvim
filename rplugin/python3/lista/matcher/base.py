@@ -15,7 +15,7 @@ ESCAPE_VIM_PATTERN_TABLE = str.maketrans({
 
 
 class AbstractMatcher(metaclass=ABCMeta):
-    """An abstract macher class.
+    """An abstract matcher class.
 
     Attributes:
         nvim (neovim.Nvim): A ``neovim.Nvim`` instance.
@@ -44,6 +44,7 @@ class AbstractMatcher(metaclass=ABCMeta):
         Args:
             query (str): A query string.
             ignorecase (bool): Boolean to indicate ignorecase.
+            highlight_group (str): Vim highlight group to use, if not default.
         """
         self.remove_highlight()
         if not query:

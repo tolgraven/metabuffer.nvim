@@ -25,7 +25,7 @@ except ImportError:
 def start(nvim, args, resume):
     import traceback
     try:
-        from .prompt.prompt import STATUS_ACCEPT
+        from .prompt.prompt import STATUS_ACCEPT, STATUS_CANCEL, STATUS_INTERRUPT
         from .lista import Lista, Condition
         if resume and '_lista_context' in nvim.current.buffer.vars:
             context = nvim.current.buffer.vars['_lista_context']
@@ -33,35 +33,30 @@ def start(nvim, args, resume):
             condition = Condition(**context)
         else:
             condition = Condition(
-                text=args[0],
-                caret_locus=0,
+                text=args[0], caret_locus=0,
                 selected_index=nvim.current.window.cursor[0] - 1,
-                matcher_index=0,
-                case_index=0,
-                syntax_index=0,
+                matcher_index=0, case_index=0, syntax_index=0,
             )
         lista = Lista(nvim, condition)
         status = lista.start()
-        # nvim.command('redraw!')
         nvim.command('redraw')
         if status == STATUS_ACCEPT:
-            # nvim.call('cursor', [lista.selected_line, 0])
-            nvim.call('normal! ' + lista.selected_line + 'gg')
-            # other alternative is to set a manual mark m', no downsides
-            # as far as i can tell but will have to explore
+            # nvim.call('cursor', [lista.selected_line, 0])  #doesnt add prev loc to jumplist...
+            nvim.command(':' + str(lista.selected_line))
+            # other alternative is to set a manual mark m', no downsides?
             nvim.command('normal! zvzz')
-            nvim.call(lista.get_searchcommand())
+            nvim.call('setreg', '/', lista.get_searchcommand())  #populate search reg
 
         elif status == STATUS_CANCEL:
-          #la
+            nvim.command('echomsg "STATUS_CANCEL"')
+            #should restore properly, not modify search reg etc
         elif status == STATUS_INTERRUPT:
-          #la
+            nvim.command('echomsg "STATUS_INTERRUPT"')
+            #arfthis will be "normal mode" i guess. leave dummy up...
 
         nvim.current.buffer.vars['_lista_context'] = lista.store()._asdict()
     except Exception as e:
         from .prompt.util import ESCAPE_ECHO
-        # still need to clean up hey...  on throw/crasch it still mostly ends up with
-        # a fucked dangling scratch buffer occupying the window
         nvim.command('redraw!')
         nvim.command('redrawstatus')
         nvim.command('echohl ErrorMsg')
