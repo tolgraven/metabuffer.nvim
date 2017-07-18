@@ -72,12 +72,10 @@ class Lista(Prompt):
 
     def __init__(self, nvim, condition):
         super().__init__(nvim)
-        self._buffer, self._indices = None, None
-        self._previous = ''
+        self._buffer, self._indices, self._previous = None, None, ''
 
         self._previous_hit_count = 0
-        self.sign_id_start = 90101
-        self.signs_defined = []
+        self.sign_id_start, self.signs_defined = 90101, []
         self.timer_active = False
         # self.loop = asyncio.get_event_loop()
         self.callback_time = 250
@@ -143,10 +141,12 @@ class Lista(Prompt):
         wrap = self.nvim.current.window.options['wrap']
         # something like this, but doesnt work this way. so maybe just loop?
         # foldcolumn, number, relativenumber, wrap = self.nvim.current.window.options['foldcolumn', 'number', 'relativenumber', 'wrap']
-
         #might nerdtree etc work if keep conceal active?
         conceallevel = self.nvim.current.window.options['conceallevel']
+        self.buffer_syntax = self.nvim.current.buffer.options['syntax']
+        signs = self.nvim.command('sign list')
 
+        # CREATE NEW BUFFER
         self.nvim.command('noautocmd keepjumps enew')
         self.nvim.current.buffer[:] = self._content
         buf_opts = {'buftype': 'nofile', 'bufhidden': 'wipe', 'buflisted': False,}
@@ -160,7 +160,7 @@ class Lista(Prompt):
         for opt,val in win_opts.items():
             self.nvim.current.window.options[opt] = val
         self.nvim.command('sign define ListaDummy')
-        if self.signs_enabled:  #should also place dummy if there were signs placed/signcolumn visible, so layout stays the same
+        if self.signs_enabled or signs:  #should also place dummy if there were signs placed/signcolumn visible, so layout stays the same
           self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % (
               self.nvim.current.buffer.number))
 
