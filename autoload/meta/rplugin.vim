@@ -1,15 +1,15 @@
 let s:rep = expand('<sfile>:p:h:h:h')
 
 
-function! lista#rplugin#start(default) abort
-  if !lista#rplugin#init()
+function! meta#rplugin#start(default) abort
+  if !meta#rplugin#init()
     return
   endif
   python3 << EOC
 def _temporary_scope():
     import vim
     import rplugin
-    from lista import start
+    from meta import start
     nvim = rplugin.Neovim(vim)
     start(nvim, [nvim.eval('a:default')], False)
 _temporary_scope()
@@ -17,15 +17,15 @@ del _temporary_scope
 EOC
 endfunction
 
-function! lista#rplugin#resume(default) abort
-  if !lista#rplugin#init()
+function! meta#rplugin#resume(default) abort
+  if !meta#rplugin#init()
     return
   endif
   python3 << EOC
 def _temporary_scope():
     import vim
     import rplugin
-    from lista import start
+    from meta import start
     nvim = rplugin.Neovim(vim)
     start(nvim, [nvim.eval('a:default')], True)
 _temporary_scope()
@@ -33,7 +33,7 @@ del _temporary_scope
 EOC
 endfunction
 
-function! lista#rplugin#init() abort
+function! meta#rplugin#init() abort
   if exists('s:supported')
     return s:supported
   endif
@@ -44,10 +44,10 @@ function! lista#rplugin#init() abort
           \})
     let s:supported = result.python3
     if !s:supported
-      echoerr 'Lista requires a Neovim or Vim with Python3 support (+python3)'
+      echoerr 'Metabuffer requires a Neovim or Vim with Python3 support (+python3)'
     endif
   catch /^Vim\%((\a\+)\)\=:E117/
-    echoerr 'Lista requires a lambdalisue/vim-rplugin in Vim8.'
+    echoerr 'Metabuffer requires a lambdalisue/vim-rplugin in Vim8.'
     echoerr 'https://github.com/lambdalisue/vim-rplugin'
     let s:supported = 0
   endtry

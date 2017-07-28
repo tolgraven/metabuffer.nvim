@@ -13,16 +13,15 @@ class AbstractBuffer(metaclass=ABCMeta):
 
     name = 'abstract'
 
-    def __init__(self, buffer):
+    def __init__(self, buffer, opts):
         """Constructor.
 
         Args:
             nvim.buffer (neovim.Nvim): A ``neovim.Nvim.buffer`` instance.
         """
-        self.buffer = buffer
-        self.attributes = {[]}    # the relevant options so that any dummy
-        # buffers controlling this buffer behave horrectly, and restore all original options properly.
-#so it'll be like
+        self.buffer = buffer      #nvim buffer object
+        self.attributes = {[]}    # the relevant options so that any dummy buffers controlling this buffer behave horrectly, and restore all original options properly.  #so it'll be like
+        
         # self.syntax =       #all buffers will have a syntax, even if it's "none"
         # self.vim_id = self.buffer.
                   #for a dummy buffer it will mean the currently active syntax in vim, for a backing buffer it will be its original syntax

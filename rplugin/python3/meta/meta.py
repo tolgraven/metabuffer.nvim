@@ -1,10 +1,7 @@
 import time
-# from threading import Timer
-# import datetime
-# import asyncio
 import re
 from collections import namedtuple
-from lista.prompt.prompt import (  # type: ignore
+from meta.prompt.prompt import (  # type: ignore
     INSERT_MODE_INSERT,
     Prompt,
 )
@@ -24,7 +21,7 @@ CASES = ( CASE_SMART, CASE_IGNORE, CASE_NORMAL,)
 SYN_BUFFER = 0
 SYN_BUILTIN = 1
 SYNTAXES = ( SYN_BUFFER, SYN_BUILTIN,)
-syntax_types = ['buffer', 'lista']  #will this ever be the extent of it with
+syntax_types = ['buffer', 'metabuffer']  #will this ever be the extent of it with
 # matchadd covering the rest, or can I come up with new categories? there is some
 # way of combining properties of multiple syntax that I read about, look up.
 # Ideal ofc if individual files of varying filetypes can each coexist properly
@@ -40,28 +37,27 @@ Condition = namedtuple('Condition', [
 ])
 
 
-class Lista(Prompt):
-    """Lista class."""
+class Meta(Prompt):
+    """Meta class."""
 
     prefix = '# '
-    hotkey = {'matcher': 'C-^', 'case': 'C-_', 'syntax': 'C-s' }  # until figure out how to fetch the keymap back properly
+    hotkey = {'matcher': 'C^', 'case': 'C_', 'pause': 'Cc', 'syntax': 'Cs' }  # until figure out how to fetch the keymap back properly
 
     statusline = ''.join([
-        '%%#ListaStatuslineMode%s#%s%%#ListaStatuslineQuery#%s',
-        '%%#ListaStatuslineFile# %s',
-        '%%#ListaStatuslineIndicator# %d/%d',
+        '%%#MetaStatuslineMode%s#%s%%#MetaStatuslineQuery#%s',
+        '%%#MetaStatuslineFile# %s',
+        '%%#MetaStatuslineIndicator# %d/%d',
         '%%#Normal# %d',
-        '%%#ListaStatuslineMiddle#%%=',
-        # '%%#ListaStatuslineMode%s# %s ',
-        '%%#ListaStatuslineMatcher%s# %s %%#ListaStatuslineKey#%s',
-        '%%#ListaStatuslineCase%s# %s %%#ListaStatuslineKey#%s',
-        '%%#ListaStatuslineSyntax%s# %s %%#ListaStatuslineKey#%s ',
+        '%%#MetaStatuslineMiddle#%%=',
+        # '%%#MetaStatuslineMode%s# %s ',
+        '%%#MetaStatuslineMatcher%s# %s %%#MetaStatuslineKey#%s',
+        '%%#MetaStatuslineCase%s# %s %%#MetaStatuslineKey#%s',
+        '%%#MetaStatuslineSyntax%s# %s %%#MetaStatuslineKey#%s ',
+        '%%#Normal#%s %%#MetaStatuslineKey#%s',
     ]) # FIX!! show full line number for curr line in statusline.
 
     selected_index = 0
-
     matcher_index = 0
-
     case_index = 0
 
     @property
@@ -76,25 +72,25 @@ class Lista(Prompt):
 
         self._previous_hit_count = 0
         self.sign_id_start, self.signs_defined = 90101, []
-        self.timer_active = False
+        # self.timer_active = False
         # self.loop = asyncio.get_event_loop()
-        self.callback_time = 250
 
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
         self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
-        self.keymap.register_from_rules(nvim, nvim.vars.get('lista#custom_mappings', []))
+        self.keymap.register_from_rules(nvim, nvim.vars.get('meta#custom_mappings', []))
         # self.keymap...  # something to get switcher bindings for statusline. Just parse out as str
-        self.highlight_groups = nvim.vars.get('lista#highlight_groups', {})
-        # self.syntax_state['active'] = nvim.vars.get('lista#syntax_init') or 'buffer'
-        self.signs_enabled = nvim.vars.get('lista#line_nr_in_sign_column') or False
+        self.highlight_groups = nvim.vars.get('meta#highlight_groups', {})
+        # self.syntax_state['active'] = nvim.vars.get('meta#syntax_init') or 'buffer'
+        self.signs_enabled = nvim.vars.get('meta#line_nr_in_sign_column') or False
+
         self.restore(condition)
 
     def start(self):
         bufhidden = self.nvim.current.buffer.options['bufhidden']
         self.nvim.current.buffer.options['bufhidden'] = 'hide'
-        try:
-            return super().start()
+        try:  return super().start()
         finally:
+            # self.nvim.current.window.
             self.nvim.current.buffer.options['bufhidden'] = bufhidden  #this is why scratch remains when shit throwns and that? must be
 
     def switch_matcher(self):
@@ -108,18 +104,15 @@ class Lista(Prompt):
 
     def switch_highlight(self):
         self.syntax.next()
-        new_syntax = 'lista' if self.syntax.current is SYN_BUILTIN else self.buffer_syntax
+        new_syntax = 'meta' if self.syntax.current is SYN_BUILTIN else self.buffer_syntax
 
         self.nvim.command('set syntax=' + new_syntax)
         self._previous = ''
 
     def get_ignorecase(self):
-        if self.case.current is CASE_IGNORE:
-            return True
-        elif self.case.current is CASE_NORMAL:
-            return False
-        elif self.case.current is CASE_SMART:
-            return not any(c.isupper() for c in self.text)
+        if self.case.current is CASE_IGNORE:  return True
+        elif self.case.current is CASE_NORMAL: return False
+        elif self.case.current is CASE_SMART:  return not any(c.isupper() for c in self.text)
 
     def get_searchcommand(self):
         return self.searchcommand
@@ -128,8 +121,7 @@ class Lista(Prompt):
         self._buffer = self.nvim.current.buffer
         self._buffer_name = self.nvim.eval('simplify(expand("%:~:."))')
         self._content = list(map(
-            lambda x: ANSI_ESCAPE.sub('', x),
-            self._buffer[:]
+            lambda x: ANSI_ESCAPE.sub('', x), self._buffer[:]
         ))
         self._line_count = len(self._content)
         self._indices = list(range(self._line_count))
@@ -141,10 +133,11 @@ class Lista(Prompt):
         wrap = self.nvim.current.window.options['wrap']
         # something like this, but doesnt work this way. so maybe just loop?
         # foldcolumn, number, relativenumber, wrap = self.nvim.current.window.options['foldcolumn', 'number', 'relativenumber', 'wrap']
-        #might nerdtree etc work if keep conceal active?
-        conceallevel = self.nvim.current.window.options['conceallevel']
+        conceallevel = self.nvim.current.window.options['conceallevel'] #might nerdtree etc work if keep conceal active?
         self.buffer_syntax = self.nvim.current.buffer.options['syntax']
-        signs = self.nvim.command('sign list')
+        signs = self.nvim.command_output('sign list')[2]
+        self.signs = signs
+        self.callback_time = 500
 
         # CREATE NEW BUFFER
         self.nvim.command('noautocmd keepjumps enew')
@@ -159,12 +152,12 @@ class Lista(Prompt):
             self.nvim.current.buffer.options[opt] = val
         for opt,val in win_opts.items():
             self.nvim.current.window.options[opt] = val
-        self.nvim.command('sign define ListaDummy')
+        self.nvim.command('sign define MetaDummy')
         if self.signs_enabled or signs:  #should also place dummy if there were signs placed/signcolumn visible, so layout stays the same
-          self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % (
+          self.nvim.command('sign place 666 line=1 name=MetaDummy buffer=%d' % (
               self.nvim.current.buffer.number))
 
-        if not self.buffer_syntax:  #something went wrong getting syntax from vim, use strictly lista's own
+        if not self.buffer_syntax:  #something went wrong getting syntax from vim, use strictly meta's own
             self.buffer_syntax = syntax_types[SYN_BUILTIN]
             self.syntax.index = SYN_BUILTIN
         self.nvim.command('set syntax=' + self.buffer_syntax)  #init at index 0 = buffer, for now. Consistent with the others, but can't be hardset later when more appear
@@ -187,7 +180,7 @@ class Lista(Prompt):
         if self.syntax.current is SYN_BUFFER:
           hl_prefix, syntax_name = 'Buffer', self.buffer_syntax
         elif self.syntax.current is SYN_BUILTIN:
-          hl_prefix, syntax_name = 'Lista', 'lista'
+          hl_prefix, syntax_name = 'Meta', 'meta'
 
         self.nvim.current.window.options['statusline'] = self.statusline % (
             insert_mode_name.capitalize(), prefix, self.text,
@@ -197,6 +190,7 @@ class Lista(Prompt):
             self.matcher.current.name.capitalize(), self.matcher.current.name, self.hotkey['matcher'],
             case_name.capitalize(), case_name, self.hotkey['case'],
             hl_prefix, syntax_name, self.hotkey['syntax'],
+            'pause', self.hotkey['pause'], 
         )
         self.nvim.command('redrawstatus')
         return super().on_redraw()
@@ -225,92 +219,64 @@ class Lista(Prompt):
             assign_content(self.nvim, [self._content[i] for i in self._indices])
             if self.signs_enabled:
               self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1...
-              self.nvim.command('sign place 666 line=1 name=ListaDummy buffer=%d' % self.nvim.current.buffer.number)
+              self.nvim.command('sign place 666 line=1 name=MetaDummy buffer=%d' % self.nvim.current.buffer.number)
 
-        # if self.timer_id:
-            # self.nvim.command('call timer_stop(%d)' % self.timer_id)
         time_since_start = time.clock() - self._start_time
+        try: 
+            # if self.timer_id:
+            self.nvim.command('call timer_stop(%d)' % self.timer_id)
+        except:
+            self.nvim.command('echomsg "NO TIMER YO"')
         if hit_count < 15:
             self.update_signs(hit_count)
-
         elif hit_count < self._line_count and time_since_start > 0.035:
             sign_limit = min(5 * len(self.text), 25)
             self.update_signs(min(hit_count, sign_limit))
-            # self.update_signs(20)
-            # self.timer.cancel()
-            # self.timer = Timer(1, self.nvim.async_call(self.callback_signs()))
-            # self.timer.start()
-
-            # self.loop = asyncio.get_event_loop()
-            # loop.run_until_complete(self.timer_signs())
-            # self.loop.call_later(0.25, self.timer_signs())
-
-            # if self.active_timer:
-            #     self.active_timer.cancel()
-            # self.active_timer = self.loop.call_later(0.20, self.update_signs(20))
-
-            # self.active_timer = self.loop.call_later(3.25, self.hurf())
-            # self.active_timer.cancel()
-            # # self.timer_id = self.nvim.command('call timer_start(%d, "<SID>callback_update"' % self.callback_time)
-            # 
+            # self.timer_id = self.nvim.command('call timer_start(%d, "<SID>callback_update"' % self.callback_time)
+            self.timer_id = self.nvim.call('timer_start', self.callback_time, "<SID>meta#callback_update")
 
         return super().on_update(status)
 
+
     def callback_signs(self):
         self.update_signs(len(self._indices))
-    # NOTE: need to: put timer on other thread
-    # then callback needs to do nvim.async_call, passing a python function on the main thread
 
-    # async def timer_signs(self):
-    #     # await asyncio.sleep(0.25)
-    #     # update_signs(len(self.indices))
-    #     while True:
-    #         if self.timer_active:
-    #             update_signs(len(self._indices))
-    #             self.timer_active = False
-    #             break
-    #         else:
-    #             self.timer_active = True
-    #             await asyncio.sleep(0.25)
 
     def update_signs(self, hit_count = None, jump_to_next = 1):
-        if not self.signs_enabled:
-            return
+        if not self.signs_enabled: return
         hit_count = hit_count or len(self._indices)
         win_height = self.nvim.current.window.height
         buf_nr = self.nvim.current.buffer.number
 
-        colors = ['ListaSign' + color for color in
+        colors = ['MetaSign' + color for color in
                   ['Aqua', 'Blue', 'Purple', 'Green', 'Yellow', 'Orange', 'Red']]
-
-        signs_placed = []
+        # signs_placed = []
 
         for hit_line_index in range(min(hit_count, win_height)):
             source_line_nr = self._indices[hit_line_index] + 1
 
             if source_line_nr not in self.signs_defined:
                 highlight = next((colors[x] for x in range(len(colors))
-                                  if x*100 + 99 >= source_line_nr),
-                                  'Normal')
+                                  if x*100 + 99 >= source_line_nr), 'Normal')
                 index_text = str(source_line_nr)[-2:]
 
-                sign_to_define = 'sign define ListaLine%d text=%s texthl=%s' % (
-                    source_line_nr, index_text, highlight)
+                sign_to_define = 'sign define MetaLine%d text=%s texthl=%s' % (
+                                  source_line_nr, index_text, highlight)
                 self.nvim.command(sign_to_define)
                 self.signs_defined.append(source_line_nr)
 
             # remember all placed signs get reset to line 1 when content is replaced. 
-            sign_to_place = 'sign place %d line=%d name=ListaLine%d buffer=%d' % (
+            sign_to_place = 'sign place %d line=%d name=MetaLine%d buffer=%d' % (
                 self.sign_id_start + hit_line_index, hit_line_index + 1,
                 source_line_nr, buf_nr)
 
-            signs_placed.append(hit_line_index + 1)
+            # signs_placed.append(hit_line_index + 1)
             self.nvim.command(sign_to_place)
 
 
     def on_term(self, status):
         self.matcher.current.remove_highlight()   #not on pause tho I guess?
-        self.nvim.command('echo "%s" | redraw' % (
+        self.nvim.command('echomsg "%s" | redraw' % (
             '\n' * self.nvim.options['cmdheight']
         ))
         self.selected_index = self.nvim.current.window.cursor[0] - 1
