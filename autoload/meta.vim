@@ -21,7 +21,7 @@ if !exists('g:meta#custom_mappings')
   let g:meta#custom_mappings = []
 endif
 if !exists('g:meta#highlight_groups')
-	let g:meta#highlight_groups = {'meta': 'Title', 'buffer': 'metaSearchHitBuffer'}
+	let g:meta#highlight_groups = {'meta': 'Title', 'buffer': 'MetaSearchHitBuffer'}
 endif
 if !exists('g:meta#syntax_on_init')
 	let g:meta#syntax_on_init = 'buffer'
