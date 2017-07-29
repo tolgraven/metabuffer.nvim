@@ -46,6 +46,8 @@ def start(nvim, args, resume):
             # other alternative is to set a manual mark m', no downsides?
             nvim.command('normal! zvzz')
             nvim.call('setreg', '/', meta.get_searchcommand())  #populate search reg
+            nvim.command('normal! n')
+            # nvim.command('nohlsearch')
 
         elif status == STATUS_CANCEL:
             nvim.command('echomsg "STATUS_CANCEL"')
@@ -62,5 +64,7 @@ def start(nvim, args, resume):
         nvim.command('echohl ErrorMsg')
         for line in traceback.format_exc().splitlines():
             nvim.command('echomsg "%s"' % line.translate(ESCAPE_ECHO))
+
+        self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
         # nvim.command()  #check if buffer is hanging around, clean it up, etc etc
         # should be generalized as much as possible so that can be used for the meta buffers

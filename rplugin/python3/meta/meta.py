@@ -218,22 +218,24 @@ class Meta(Prompt):
         if previous_hit_count != hit_count:  # should use more robust check since we can of course end up with same amount, but different hits
             assign_content(self.nvim, [self._content[i] for i in self._indices])
             if self.signs_enabled:
-              self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1...
+              self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1... but guess theoretically we might want to be able to retain existing signs from other fuckers, sounds far off though so this works for now
               self.nvim.command('sign place 666 line=1 name=MetaDummy buffer=%d' % self.nvim.current.buffer.number)
 
         time_since_start = time.clock() - self._start_time
         try: 
             # if self.timer_id:
-            self.nvim.command('call timer_stop(%d)' % self.timer_id)
+            # self.nvim.command('call timer_stop(%d)' % self.timer_id)
+            self.nvim.call('timer_stop', self.timer_id)
         except:
-            self.nvim.command('echomsg "NO TIMER YO"')
+            self.nvim.command('echo "NO TIMER YO"')
+
         if hit_count < 15:
             self.update_signs(hit_count)
         elif hit_count < self._line_count and time_since_start > 0.035:
             sign_limit = min(5 * len(self.text), 25)
             self.update_signs(min(hit_count, sign_limit))
             # self.timer_id = self.nvim.command('call timer_start(%d, "<SID>callback_update"' % self.callback_time)
-            self.timer_id = self.nvim.call('timer_start', self.callback_time, "<SID>meta#callback_update")
+            self.timer_id = self.nvim.call('timer_start', self.callback_time, 'meta#callback_update')
 
         return super().on_update(status)
 
@@ -275,7 +277,7 @@ class Meta(Prompt):
 
 
     def on_term(self, status):
-        self.matcher.current.remove_highlight()   #not on pause tho I guess?
+        self.matcher.current.remove_highlight()   #not on pause tho I guess? also might generally want to put just some suble shit on it on exit
         self.nvim.command('echomsg "%s" | redraw' % (
             '\n' * self.nvim.options['cmdheight']
         ))
@@ -293,7 +295,7 @@ class Meta(Prompt):
         # hmm. Especially if you go back and forth between filtering and actual
         # editing...
 
-        # this one def not when pausing...
+        # this one def not to run when pausing... restore orig buffer
         self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
         if self.text:
             caseprefix = '\c' if self.get_ignorecase() else '\C'

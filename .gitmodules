@@ -1,0 +1,3 @@
+[submodule "rplugin/python3/my_awesome_vim_p"]
+	path = rplugin/python3/my_awesome_vim_p
+	url = https://github.com/lambdalisue/neovim-prompt
