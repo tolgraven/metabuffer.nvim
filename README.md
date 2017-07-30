@@ -4,20 +4,43 @@ Metabuffer
 Introduction
 -------------------------------------------------------------------------------
 
-Metabuffer is a plugin to source and filter content. What differentiates what it (aims to)
-do from the multitude of existing fuzzy-finders and matchers is that instead of searching for something,
-then jumping there, we want to simply pull towards us, aggregate what we are interested in modifying, 
-and have any changes propagated back to their original locations, automatically.
+Metabuffer is a plugin to source and filter content. What differentiates what
+it (doesn't remotely yet) do from the multitude of existing fuzzy-finders and
+matchers is that instead of searching for something, then jumping there, we
+want to simply pull towards us, aggregate what we are interested in modifying,
+and have any changes propagated back to their original locations,
+automatically.
 
-Together with new tools for filtering, for example syntax-based, it aims to not just make finding
-what you need easier, but editing too.
-And since a metabuffer, once out of prompt and back in normal mode, is simply a buffer like any other,
-all regular editing tools stay available.
+Think FZF + NarrowRegion + batshit regex wizardry, on steroids, and super
+WYSIWYG and real-time.
 
-All that is super far off as of now, and currently it mainly functions as a slightly polished 
-(and also very buggy) version of lambdalisue's excellent Lista plugin.
+Together with new methods of filtering, for example by type (via syntax
+highlighting group, so should support everything vim does), and not requiring
+(but allowing) one to remembe a bunch of arcane syntax and formulate a query
+solely by typing, but equally by 'tapping' things - pointing at them going
+filter out stuff like this, filter out that - it aims to not just make finding
+easier, but editing too.  Minimizing context switches by not chasing files and
+regions within them, but simply pulling up what's relevant, and working on
+that.  Since a metabuffer, once out of prompt and back in normal mode, is
+simply a buffer like any other, all regular editing tools stay available,
+including plugins and external ones.
 
-Stay tuned...
+Navigation and refactoring are the obvious applications, but I think this
+concept of keeping metadata for each line and keeping track of its origin and
+purpose should allow extending the workflow to many types of sources.  Putting
+an `ls -la` in a metabuffer, and making modifications, should move the files
+correspondingly.  The end product should approach something like a mix between
+a regular buffer, fuzzy finder, shell/REPL - and importantly, the latters
+output.  All with glorious native syntax highlighting, and extensive
+expandability.
+
+
+Literally all of that is super far off as of now, and currently it mainly
+functions as a slightly polished (and also very buggy) version of lambdalisue's
+excellent Lista plugin.
+
+Stay tuned and hopefully soon there will be enough functionality available that
+it starts making some kind of sense. Maybe.
 
 Install
 -------------------------------------------------------------------------------

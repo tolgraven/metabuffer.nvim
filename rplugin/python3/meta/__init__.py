@@ -29,16 +29,18 @@ def start(nvim, args, resume):
         from .meta import Meta, Condition
         if resume and '_meta_context' in nvim.current.buffer.vars:
             context = nvim.current.buffer.vars['_meta_context']
-            context['text'] = context['text'] if not args[0] else args[0]
+            # context['text'] = context['text'] if not args[0] else args[0]
+            if args[0]:
+              context['text'] = args[0]
             condition = Condition(**context)
-        else:
+        else:  #fresh start
             condition = Condition(
                 text=args[0], caret_locus=0,
                 selected_index=nvim.current.window.cursor[0] - 1,
                 matcher_index=0, case_index=0, syntax_index=0,
             )
         meta = Meta(nvim, condition)
-        status = meta.start()  #run main loop
+        status = meta.start()  #main loop. Prob rename from 'start' to 'run', no?
 
         nvim.command('redraw')
         if status == STATUS_ACCEPT:
