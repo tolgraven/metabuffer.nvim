@@ -18,12 +18,13 @@ Together with new methods of filtering, for example by type (via syntax
 highlighting group, so should support everything vim does), and not requiring
 (but allowing) one to remembe a bunch of arcane syntax and formulate a query
 solely by typing, but equally by 'tapping' things - pointing at them going
-filter out stuff like this, filter out that - it aims to not just make finding
+filter out all stuff like this (comments, and docstrings, say), require that
+('everything else in function bodies') - it aims to not just make finding
 easier, but editing too.  Minimizing context switches by not chasing files and
-regions within them, but simply pulling up what's relevant, and working on
-that.  Since a metabuffer, once out of prompt and back in normal mode, is
-simply a buffer like any other, all regular editing tools stay available,
-including plugins and external ones.
+regions within them, but simply pulling up what's relevant, and working on it.
+Since a metabuffer, once out of prompt and back in normal mode, is simply a
+buffer like any other, all regular editing tools stay available, including
+plugins and external ones.
 
 Navigation and refactoring are the obvious applications, but I think this
 concept of keeping metadata for each line and keeping track of its origin and
