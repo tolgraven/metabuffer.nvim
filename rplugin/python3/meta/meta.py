@@ -66,6 +66,7 @@ class Meta(Prompt):
             return self._indices[self.selected_index] + 1
         return 0
 
+
     def __init__(self, nvim, condition):
         super().__init__(nvim)
         self._buffer, self._indices, self._previous = None, None, ''
@@ -93,6 +94,7 @@ class Meta(Prompt):
             # self.nvim.current.window.
             self.nvim.current.buffer.options['bufhidden'] = bufhidden  #this is why scratch remains when shit throwns and that? must be
 
+
     def switch_matcher(self):
         self.matcher.current.remove_highlight()
         self.matcher.next()
@@ -116,6 +118,7 @@ class Meta(Prompt):
 
     def get_searchcommand(self):
         return self.searchcommand
+
 
     def on_init(self):
         self._buffer = self.nvim.current.buffer
@@ -163,11 +166,16 @@ class Meta(Prompt):
         self.nvim.command('set syntax=' + self.buffer_syntax)  #init at index 0 = buffer, for now. Consistent with the others, but can't be hardset later when more appear
         # need to set syntax up here instead of on_redraw like the other stuff, dont want to set that every time, only on changes, right?
         self.nvim.call('cursor', [self.selected_index + 1, 0])
-        self.nvim.command('normal! zvzz')
+        # self.nvim.command('normal! zvzz')  #thought this killed folds but
+        # that obvs happens automatically since we're in a new buffer, seems
+        # zv 'view cursor line: open just enough folds to make the line in which the cursor is located not folded'
+        # zz 'redraw, make cursor line centered in window'
+        # seems dumb, we don't want any jumps when entering meta mode...
 
         self._start_time = time.clock()
 
         return super().on_init()
+
 
     def on_redraw(self):
         prefix = self.prefix
@@ -194,6 +202,7 @@ class Meta(Prompt):
         )
         self.nvim.command('redrawstatus')
         return super().on_redraw()
+
 
     def on_update(self, status):
         previous, self._previous = self._previous, self.text
@@ -291,9 +300,9 @@ class Meta(Prompt):
         # scratch. But I think a buffer that has been paused, and then isn't
         # resumed but just has a new instance ran on top of it, should have that
         # filtered selection as a starting point, treated like any other buffer -
-        # BUT that's where you tart requiring metadata for every single line...
-        # hmm. Especially if you go back and forth between filtering and actual
-        # editing...
+        # and itself responsible for propogation, daisy-chaining like...
+        # Otherwise it seems it would get out of hand if the end-meta has to keep track
+        # of everything... messy as balls either way I guess lol
 
         # this one def not to run when pausing... restore orig buffer
         self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
@@ -303,7 +312,7 @@ class Meta(Prompt):
             self.searchcommand = caseprefix + pattern
             # self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N. Could set so auto-hl's only if pressed enter, not esc
 
-            #when multiple search words we really should use matchadd() too tho # to separate multiple terms. Plus that add the possibility
+            #when multiple search words we really should keep using matchadd() too tho # to separate multiple terms. Plus that add the possibility
             # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.
             # Get on stealing that, fzf was it?, ez-mode regex engine
 

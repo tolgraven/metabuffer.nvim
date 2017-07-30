@@ -38,16 +38,17 @@ def start(nvim, args, resume):
                 matcher_index=0, case_index=0, syntax_index=0,
             )
         meta = Meta(nvim, condition)
-        status = meta.start()
+        status = meta.start()  #run main loop
+
         nvim.command('redraw')
         if status == STATUS_ACCEPT:
             # nvim.call('cursor', [meta.selected_line, 0])  #doesnt add prev loc to jumplist...
             nvim.command(':' + str(meta.selected_line))
             # other alternative is to set a manual mark m', no downsides?
-            nvim.command('normal! zvzz')
+            # nvim.command('normal! zvzz')
             nvim.call('setreg', '/', meta.get_searchcommand())  #populate search reg
-            nvim.command('normal! n')
-            # nvim.command('nohlsearch')
+            nvim.command('normal! n')  #put cursor at start of searched-for word
+            # nvim.command('nohlsearch')  #clear hl
 
         elif status == STATUS_CANCEL:
             nvim.command('echomsg "STATUS_CANCEL"')
@@ -66,5 +67,5 @@ def start(nvim, args, resume):
             nvim.command('echomsg "%s"' % line.translate(ESCAPE_ECHO))
 
         self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
-        # nvim.command()  #check if buffer is hanging around, clean it up, etc etc
+        # for now, just restore orig buffer same as on regular termination
         # should be generalized as much as possible so that can be used for the meta buffers
