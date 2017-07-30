@@ -1,0 +1,3 @@
+[submodule "rplugin/python3/meta/prompt"]
+	path = rplugin/python3/meta/prompt
+	url = https://github.com/lambdalisue/neovim-prompt
