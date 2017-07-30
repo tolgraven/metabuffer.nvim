@@ -5,7 +5,10 @@ if has('nvim')
   function! meta#resume(default) abort
     return _meta_resume(a:default)
   endfunction
-	function! meta#callback_update(default) abort
+  function! meta#sync(default) abort
+    return _meta_sync(a:default)
+  endfunction
+	function! meta#callback_signs(default) abort
 		return _meta_callback_signs(a:default)
 	endfunction
 else

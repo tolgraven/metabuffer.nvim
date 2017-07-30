@@ -3,12 +3,14 @@ import re
 from collections import namedtuple
 from meta.prompt.prompt import (  # type: ignore
     INSERT_MODE_INSERT,
+    INSERT_MODE_REPLACE,
     Prompt,
 )
 from .action import DEFAULT_ACTION_KEYMAP, DEFAULT_ACTION_RULES
 from .indexer import Indexer
 from .matcher.all import Matcher as AllMatcher
 from .matcher.fuzzy import Matcher as FuzzyMatcher
+from .matcher.regex import Matcher as RegexMatcher
 from .util import assign_content
 
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
@@ -33,7 +35,8 @@ Condition = namedtuple('Condition', [
     'selected_index',
     'matcher_index',
     'case_index',
-    'syntax_index'
+    'syntax_index',
+    'restored'
 ])
 
 
@@ -73,15 +76,12 @@ class Meta(Prompt):
 
         self._previous_hit_count = 0
         self.sign_id_start, self.signs_defined = 90101, []
-        # self.timer_active = False
-        # self.loop = asyncio.get_event_loop()
 
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
         self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
         self.keymap.register_from_rules(nvim, nvim.vars.get('meta#custom_mappings', []))
         # self.keymap...  # something to get switcher bindings for statusline. Just parse out as str
         self.highlight_groups = nvim.vars.get('meta#highlight_groups', {})
-        # self.syntax_state['active'] = nvim.vars.get('meta#syntax_init') or 'buffer'
         self.signs_enabled = nvim.vars.get('meta#line_nr_in_sign_column') or False
 
         self.restore(condition)
@@ -119,6 +119,11 @@ class Meta(Prompt):
     def get_searchcommand(self):
         return self.searchcommand
 
+    def get_origbuffer(self):
+        return self._buffer
+
+    def get_indices(self):    #later evolve this to obvs a proper metadata-backed pack and allow to just get specific ones etc
+        return self._indices
 
     def on_init(self):
         self._buffer = self.nvim.current.buffer
@@ -138,7 +143,7 @@ class Meta(Prompt):
         # foldcolumn, number, relativenumber, wrap = self.nvim.current.window.options['foldcolumn', 'number', 'relativenumber', 'wrap']
         conceallevel = self.nvim.current.window.options['conceallevel'] #might nerdtree etc work if keep conceal active?
         self.buffer_syntax = self.nvim.current.buffer.options['syntax']
-        signs = self.nvim.command_output('sign list')[2]
+        signs = self.nvim.command_output('sign place buffer=%d' % self.nvim.current.buffer.number)[2]
         self.signs = signs
         self.callback_time = 500
 
@@ -200,9 +205,14 @@ class Meta(Prompt):
             hl_prefix, syntax_name, self.hotkey['syntax'],
             'pause', self.hotkey['pause'], 
         )
+        # if self.restored:
+        #   self.caret.locus = self.caret.tail()
+        #   self.restored = False  #well need better way but yeah
+        #   OH yeah so this wasnt the problwem lol the problem is on cursorword
+        #   that caret starts at 0 before the word cause we havnenrt fucking typed anything
+
         self.nvim.command('redrawstatus')
         return super().on_redraw()
-
 
     def on_update(self, status):
         previous, self._previous = self._previous, self.text
@@ -227,13 +237,11 @@ class Meta(Prompt):
         if previous_hit_count != hit_count:  # should use more robust check since we can of course end up with same amount, but different hits
             assign_content(self.nvim, [self._content[i] for i in self._indices])
             if self.signs_enabled:
-              self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1... but guess theoretically we might want to be able to retain existing signs from other fuckers, sounds far off though so this works for now
+              self.nvim.command('sign unplace * buffer=%d' % self.nvim.current.buffer.number)  #no point not clearing since all end up at line 1... but guess theoretically we might want to be able to move along existing signs from other fuckers, sounds far off though so this works for now
               self.nvim.command('sign place 666 line=1 name=MetaDummy buffer=%d' % self.nvim.current.buffer.number)
 
         time_since_start = time.clock() - self._start_time
         try: 
-            # if self.timer_id:
-            # self.nvim.command('call timer_stop(%d)' % self.timer_id)
             self.nvim.call('timer_stop', self.timer_id)
         except:
             self.nvim.command('echo "NO TIMER YO"')
@@ -243,7 +251,6 @@ class Meta(Prompt):
         elif hit_count < self._line_count and time_since_start > 0.035:
             sign_limit = min(5 * len(self.text), 25)
             self.update_signs(min(hit_count, sign_limit))
-            # self.timer_id = self.nvim.command('call timer_start(%d, "<SID>callback_update"' % self.callback_time)
             self.timer_id = self.nvim.call('timer_start', self.callback_time, 'meta#callback_update')
 
         return super().on_update(status)
@@ -261,7 +268,6 @@ class Meta(Prompt):
 
         colors = ['MetaSign' + color for color in
                   ['Aqua', 'Blue', 'Purple', 'Green', 'Yellow', 'Orange', 'Red']]
-        # signs_placed = []
 
         for hit_line_index in range(min(hit_count, win_height)):
             source_line_nr = self._indices[hit_line_index] + 1
@@ -281,7 +287,6 @@ class Meta(Prompt):
                 self.sign_id_start + hit_line_index, hit_line_index + 1,
                 source_line_nr, buf_nr)
 
-            # signs_placed.append(hit_line_index + 1)
             self.nvim.command(sign_to_place)
 
 
@@ -294,6 +299,8 @@ class Meta(Prompt):
         self.matcher_index = self.matcher.index
         self.case_index = self.case.index
         self.syntax_index = self.syntax.index
+        #dont really need to clean up like placed signs and stuff right I guess? cause if we're bailing buf is wiped and signs with it, if we're pausing we don't want them gone yet anyways...
+
         self.nvim.current.buffer.options['modified'] = False  #do we leave a
         # filtered dummy buffer as modified and hence revertible? not really
         # feasible or necessary since reverting ought to imply wiping the
@@ -305,12 +312,11 @@ class Meta(Prompt):
         # of everything... messy as balls either way I guess lol
 
         # this one def not to run when pausing... restore orig buffer
-        self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
-        if self.text:
+        # self.nvim.command('noautocmd keepjumps %dbuffer' % self._buffer.number)
+        if self.text:  #contents of propt when finishing...
             caseprefix = '\c' if self.get_ignorecase() else '\C'
             pattern = self.matcher.current.get_highlight_pattern(self.text)
             self.searchcommand = caseprefix + pattern
-            # self.nvim.call('setreg', '/', caseprefix + pattern)  #prep, but dont execute, HL search. Pop up on next n/N. Could set so auto-hl's only if pressed enter, not esc
 
             #when multiple search words we really should keep using matchadd() too tho # to separate multiple terms. Plus that add the possibility
             # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.
@@ -327,6 +333,7 @@ class Meta(Prompt):
             matcher_index=self.matcher_index,
             case_index=self.case_index,
             syntax_index=self.syntax_index,
+            restored=True,
         )
 
     def restore(self, condition):
@@ -337,10 +344,11 @@ class Meta(Prompt):
         self.matcher_index = condition.matcher_index
         self.case_index = condition.case_index
         self.matcher = Indexer(
-            [AllMatcher(self.nvim), FuzzyMatcher(self.nvim)],
+            [AllMatcher(self.nvim), FuzzyMatcher(self.nvim), RegexMatcher(self.nvim)],
             index=self.matcher_index,
         )
         self.case = Indexer(CASES, index=self.case_index)
         self.syntax_index = condition.syntax_index
         self.syntax = Indexer(SYNTAXES, index=self.syntax_index)
+        self.restored = condition.restored
 
