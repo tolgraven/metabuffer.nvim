@@ -16,13 +16,8 @@ class Buffer(AbstractBuffer):
         self.attributes = {[]}    # the relevant options we need, also
 
 
-        self._line_count = len(self._content)
-        self._indices = list(range(self._line_count))
-        self._buffer_name = self.nvim.eval('simplify(expand("%:~:."))')
-        buf_opts = {'buftype': 'nofile', 'bufhidden': 'wipe', 'buflisted': False,}
+        # buf_opts = {'buftype': 'nofile', 'bufhidden': 'wipe', 'buflisted': False,}
+        # ^ hell no
         for opt,val in buf_opts.items():
             self.nvim.current.buffer.options[opt] = val
-
-
-
 
