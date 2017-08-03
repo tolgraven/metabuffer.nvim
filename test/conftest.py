@@ -18,12 +18,14 @@ def nvim():
 
 
 @pytest.fixture
-def lista(nvim):
-    from lista.lista import Lista, Condition
-    return Lista(nvim, Condition(
+def meta(nvim):
+    from meta.meta import Meta, Condition
+    return Meta(nvim, Condition(
         text='',
         caret_locus=0,
         selected_index=0,
         matcher_index=0,
         case_index=0,
+        syntax_index=0,
+        restored=False,
     ))

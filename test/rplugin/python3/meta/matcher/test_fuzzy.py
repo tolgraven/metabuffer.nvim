@@ -1,6 +1,6 @@
 from unittest.mock import MagicMock
 import pytest
-from lista.matcher.fuzzy import Matcher
+from meta.matcher.fuzzy import Matcher
 
 
 @pytest.fixture
