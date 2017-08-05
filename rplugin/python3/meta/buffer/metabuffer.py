@@ -1,39 +1,21 @@
 from .buffer import AbstractBuffer
 
 
-class MetaBuffer(AbstractBuffer):
+class Buffer(AbstractBuffer):
   """A vim buffer not meant for end consumption, but as a malleable and
   temporary mirror"""
-  name = 'metabuffer'
+  name = 'meta'
 
 
-  def __init__(self, nvim, buffer):
-    """Constructor.
-
-    Args:
-        nvim.buffer (neovim.Nvim): A ``neovim.Nvim.buffer`` instance.
-    """
-    self.buffer = buffer   # the nvim.buffer object holding our results
-    self.sources = []         # a list of Buffer objects, together
-    # representing the total text content of this dummy buffer
-    # self.matcher/s
-    # self.ranker = ranker # steal something from denite since we need to be able to
-    # sort, not the text within each source but the sources themselves
-    # self.syntax = if created from one source/all sources same syntax then
-    # use it automatically. 
-    # self.presentation = False        #like for dummy buffers, stuff to change
-    # presentation (whitespace, columns etc...) and other minor stuff,
-    # without touching original for those operations
+  def on_init(self):
+    self.sources = []         # a list of Buffer objects, together representing the total text content of this dummy buffer
+    # self.rank = ranker # steal something from denite since we need to be able to sort, not the text within each source but the sources themselves
+    # self.presentation = False        #like for dummy buffers, stuff to change presentation (whitespace, columns etc...) and other minor stuff, without touching original for those operations
 
     self.nvim.current.buffer[:] = self.sources.join('\n')  #cause I guess we don't need/want dedicated setterart from constructor, just add sources and refresh rather?
 
     # standard settings for metabuffer
     buf_opts = {'buftype': 'nofile', 'bufhidden': 'wipe', 'buflisted': False,}
-    win_opts = {'spell': False, 'foldenable': False, 'foldcolumn': foldcolumn,
-                'colorcolumn': '', 'cursorline': True, 'cursorcolumn': False,
-                'wrap': wrap, 'relativenumber': relativenumber, 'number': number,
-                'conceallevel': conceallevel, 
-                }
     for opt,val in buf_opts.items(): self.nvim.current.buffer.options[opt] = val
 
   def idea(self, hmm):

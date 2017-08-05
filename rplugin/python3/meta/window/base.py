@@ -1,4 +1,3 @@
-
 """Window module."""
 from abc import ABCMeta, abstractmethod
 
@@ -21,3 +20,4 @@ class AbstractWindow(metaclass=ABCMeta):
             nvim.window (neovim.Nvim): A ``neovim.Nvim.window`` instance.
         """
         self.nvim = nvim
+        self.window = window
