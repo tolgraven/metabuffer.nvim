@@ -15,6 +15,10 @@ function! s:sync(qargs) abort
   return meta#sync(a:qargs)
 endfunction
 
+function! s:sync(qargs) abort
+  return meta#sync(a:qargs)
+endfunction
+
 command! -nargs=? Meta  call s:start(<q-args>)
 command! MetaCursorWord call s:start(expand('<cword>'))
 

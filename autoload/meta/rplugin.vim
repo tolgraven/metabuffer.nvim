@@ -47,8 +47,7 @@ function! meta#rplugin#init() abort
       echoerr 'Metabuffer requires a Neovim or Vim with Python3 support (+python3)'
     endif
   catch /^Vim\%((\a\+)\)\=:E117/
-    echoerr 'Metabuffer requires a lambdalisue/vim-rplugin in Vim8.'
-    echoerr 'https://github.com/lambdalisue/vim-rplugin'
+    echoerr 'Metabuffer cant be bothered supporting vim8.'
     let s:supported = 0
   endtry
   return s:supported
