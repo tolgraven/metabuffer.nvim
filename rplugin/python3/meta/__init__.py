@@ -12,7 +12,6 @@ try:
         def resume(self, args): return start(self.nvim, args, 'resume')
 
         @neovim.function('_meta_sync', sync=True)
-        # def sync(self, args): return start(self.nvim, args, 'sync')
         def sync(self, args): return sync(self.nvim, args)
 
         @neovim.function('_meta_finish', sync=True)
@@ -41,18 +40,15 @@ def start(nvim, args, mode):
                 selected_index=nvim.current.window.cursor[0] - 1,
                 matcher_index=0, case_index=0, syntax_index=0, restored=False,
             )
-        elif mode is 'sync':  #from bufwrite autocmd
-            indices = nvim.current.buffer.vars['_meta_indices']
-            #do shit with diff and write n dat
         meta = Meta(nvim, condition)
         status = meta.start()  #main loop. Prob rename from 'start' to 'run', no?
         if status is STATUS_ACCEPT or STATUS_CANCEL:
+            meta.matcher.current.remove_highlight()
             nvim.command('sign unplace * buffer=%d' % nvim.current.buffer.number)
             nvim.command('noautocmd keepjumps %dbuffer' % meta.get_origbuffer().number)
 
         if status is STATUS_ACCEPT:  # <CR>
-            # nvim.call('cursor', [meta.selected_line, 0])  #doesnt add prev loc to jumplist...
-            nvim.command(':' + str(meta.selected_line))
+            nvim.command(':' + str(meta.selected_line)) # nvim.call('cursor', [meta.selected_line, 0])  #doesnt add prev loc to jumplist...
             nvim.command('normal! zv')  #open any folds after jumping
             # XXX try to land with cursor on same physical line as were on, to again minimize jumpery
             nvim.call('setreg', '/', meta.get_searchcommand())  #populate search reg
@@ -71,29 +67,26 @@ def start(nvim, args, mode):
             # and then use matchadd as base and set searchcommand to obvs not
             # entire filter query but whatever is deemed most relevant / top of stack like
 
-            #grab indices here yeah?
-            # indices[:] = meta.get_indices()
-
+            # indices[:] = meta.get_indices()   #grab indices here yeah?
             # set up autocmd to nuke signs once buffer is finally actually killed...
 
         nvim.command('redraw')
-
         nvim.current.buffer.vars['_meta_context'] = meta.store()._asdict()
+
     except Exception as e:
-        from .prompt.util import ESCAPE_ECHO
+        try: nvim.command('noautocmd keepjumps %dbuffer' % meta.get_origbuffer().number)
+        except: pass # nvim.command('bnext')  #couldnt restore to specific buf, manually try to go to last buf
+
         nvim.command('redraw! | redrawstatus | echohl ErrorMsg')
+        from .prompt.util import ESCAPE_ECHO
         for line in traceback.format_exc().splitlines():
             nvim.command('echomsg "%s"' % line.translate(ESCAPE_ECHO))
 
-        try: nvim.command('noautocmd keepjumps %dbuffer' % meta.get_origbuffer().number)
-        except: nvim.command('bnext')  #couldnt restore to specific buf, manually try to go to last buf
-        # for now, just restore orig buffer same as on regular termination
-        # should be generalized as much as possible so that can be used for the meta buffers
-
 
 def sync(self, nvim):
-    pass
-    #ersatz main loop...
+    indices = nvim.current.buffer.vars['_meta_indices']
+    #ersatz main loop...do shit with diff and write n dat
+    # pass
 
 def finish(self, nvim):
     pass

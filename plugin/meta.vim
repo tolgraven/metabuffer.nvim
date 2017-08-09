@@ -15,8 +15,12 @@ function! s:sync(qargs) abort
   return meta#sync(a:qargs)
 endfunction
 
-function! s:sync(qargs) abort
-  return meta#sync(a:qargs)
+function! s:finish(qargs) abort
+  return meta#finish(a:qargs)
+endfunction
+
+function! s:callback_signs(qargs) abort
+  return meta#callback_signs(a:qargs)
 endfunction
 
 command! -nargs=? Meta  call s:start(<q-args>)
@@ -26,4 +30,5 @@ command! -nargs=? MetaResume  call s:resume(<q-args>)
 command! MetaResumeCursorWord call s:resume(expand('<cword>'))
 
 " actually probably shouldnt be a cmd just autocmd
+" or fancier: 
 " command! -nargs=? MetaSync  call s:sync(<q-args>)

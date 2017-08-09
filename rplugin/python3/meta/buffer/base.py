@@ -62,7 +62,7 @@ class AbstractBuffer(metaclass=ABCMeta):
 
   def __del__(self):
     """nuke self"""
-    self.buffer.options['bufhidden'] = 'wipe'
+    # self.buffer.options['bufhidden'] = 'wipe'
     self.nvim.command('sign unplace * buffer=%d' % self.vim_id)
     # self.nvim.command('bwipe %d' % self.vim_id)  #something like that
 

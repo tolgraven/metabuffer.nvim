@@ -1,13 +1,14 @@
-from .buffer import AbstractBuffer
+from .base import AbstractBuffer
 
 
 class Buffer(AbstractBuffer):
   """A vim buffer not meant for end consumption, but as a malleable and
   temporary mirror"""
-  name = 'meta'
+  name = 'metabuffer'
 
 
   def on_init(self):
+    super().__init__(nvim)
     self.sources = []         # a list of Buffer objects, together representing the total text content of this dummy buffer
     # self.rank = ranker # steal something from denite since we need to be able to sort, not the text within each source but the sources themselves
     # self.presentation = False        #like for dummy buffers, stuff to change presentation (whitespace, columns etc...) and other minor stuff, without touching original for those operations

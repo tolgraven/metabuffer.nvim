@@ -9,8 +9,8 @@ from .indexer import Indexer
 from .matcher.all import Matcher as AllMatcher
 from .matcher.fuzzy import Matcher as FuzzyMatcher
 from .matcher.regex import Matcher as RegexMatcher
-from .buffer.buffer import Buffer as RegularBuffer
-from .buffer.meta import Buffer as MetaBuffer
+from .buffer.regular import Buffer as RegularBuffer
+from .buffer.metabuffer import Buffer as MetaBuffer
 from .util import assign_content
 
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
@@ -18,9 +18,9 @@ ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
 CASE_SMART, CASE_IGNORE, CASE_NORMAL = 1, 2, 3
 CASES = (CASE_SMART, CASE_IGNORE, CASE_NORMAL,)
 
-SYN_BUFFER, SYN_BUILTIN = 0, 1
-SYNTAXES = (SYN_BUFFER, SYN_BUILTIN,)
-syntax_types = ['buffer', 'metabuffer']  #will this ever be the extent of it with
+SYN_BUFFER, SYN_FADED = 0, 1
+SYNTAXES = (SYN_BUFFER, SYN_FADED,)
+syntax_types = ['buffer', 'faded']  #will this ever be the extent of it with
 # matchadd covering the rest, or can I come up with new categories? there is some
 # way of combining properties of multiple syntax that I read about, look up.
 # Ideal ofc if individual files of varying filetypes can each coexist properly
@@ -40,6 +40,7 @@ Condition = namedtuple('Condition', [
 class Meta(Prompt):
     """Meta class."""
 
+    prefix = '#'
     hotkey = {'matcher': 'C^', 'case': 'C_', 'pause': 'Cc', 'syntax': 'Cs' }  # until figure out how to fetch the keymap back properly
 
     statusline = ''.join([
@@ -96,7 +97,7 @@ class Meta(Prompt):
 
     def switch_highlight(self):
         self.syntax.next()
-        new_syntax = 'meta' if self.syntax.current is SYN_BUILTIN else self.buffer_syntax
+        new_syntax = 'faded' if self.syntax.current is SYN_FADED else self.buffer_syntax
         self.nvim.command('set syntax=' + new_syntax)
         self._previous = ''
 
@@ -112,13 +113,14 @@ class Meta(Prompt):
     def get_indices(self): return self._indices    #later evolve this to obvs a proper metadata-backed pack and allow to just get specific ones etc
 
     def on_init(self):
+        # self.ogbuffer = RegularBuffer(nvim, self.nvim.current.buffer)
         self._buffer = self.nvim.current.buffer
         self._buffer_name = self.nvim.eval('simplify(expand("%:~:."))')
         self._content = list(map( lambda x: ANSI_ESCAPE.sub('', x), self._buffer[:] ))
         self._line_count = len(self._content)
         self._indices = list(range(self._line_count))
-        self._bufhidden = self._buffer.options['bufhidden']
-        self._buffer.options['bufhidden'] = 'hide'
+        # self._bufhidden = self._buffer.options['bufhidden']
+        # self._buffer.options['bufhidden'] = 'hide'  #honestly lista never had a reason to do this, and we def don't
         foldcolumn = self.nvim.current.window.options['foldcolumn']
         number = self.nvim.current.window.options['number']
         relativenumber = self.nvim.current.window.options['relativenumber']
@@ -150,8 +152,8 @@ class Meta(Prompt):
               self.nvim.current.buffer.number))
 
         if not self.buffer_syntax:  #something went wrong getting syntax from vim, use strictly meta's own
-            self.buffer_syntax = syntax_types[SYN_BUILTIN]
-            self.syntax.index = SYN_BUILTIN
+            self.buffer_syntax = syntax_types[SYN_FADED]
+            self.syntax.index = SYN_FADED
         self.nvim.command('set syntax=' + self.buffer_syntax)  #init at index 0 = buffer, for now. Consistent with the others, but can't be hardset later when more appear
         # need to set syntax up here instead of on_redraw like the other stuff, dont want to set that every time, only on changes, right?
         self.nvim.call('cursor', [self.selected_index + 1, 0])
@@ -168,12 +170,13 @@ class Meta(Prompt):
     def on_redraw(self):
         mode_name, prefix = 'insert', self.prefix
         if self.insert_mode is INSERT_MODE_REPLACE: mode_name, prefix = 'replace', 'R'
-        case_name = 'ignore' if self.case.current is CASE_IGNORE else 'normal' if self.case.current is CASE_NORMAL else 'smart'
+        case_name = 'ignore' if self.case.current is CASE_IGNORE \
+               else 'normal' if self.case.current is CASE_NORMAL else 'smart'
 
         if self.syntax.current is SYN_BUFFER:
           hl_prefix, syntax_name = 'Buffer', self.buffer_syntax
-        elif self.syntax.current is SYN_BUILTIN:
-          hl_prefix, syntax_name = 'Meta', 'meta'
+        elif self.syntax.current is SYN_FADED:
+          hl_prefix, syntax_name = 'Faded', 'meta'
 
         self.nvim.current.window.options['statusline'] = self.statusline % (
             mode_name.capitalize(), prefix + ' ', self.text,
@@ -183,7 +186,6 @@ class Meta(Prompt):
             self.matcher.current.name.capitalize(), self.matcher.current.name, self.hotkey['matcher'],
             case_name.capitalize(), case_name, self.hotkey['case'],
             hl_prefix, syntax_name, self.hotkey['syntax'],
-            # 'pause', self.hotkey['pause'], 
         )
 
         self.nvim.command('redrawstatus')
@@ -203,12 +205,10 @@ class Meta(Prompt):
         hit_count = len(self._indices)
         if hit_count < 1000:
           syn = syntax_types[SYN_BUFFER] if self.syntax.current is SYN_BUFFER \
-                                       else syntax_types[SYN_BUILTIN]
+                                       else syntax_types[SYN_FADED]
           hl = self.highlight_groups[syn] + self.matcher.current.name.capitalize()
-          # need multiple matches. inbetween fuzzy = faded bg of fuzzy fg.
-          # regex wildcards/dots etc, ditto. check denite/fzf sources for how
-          # to... ALSO: different bg for different words with regular matcher,
-          # etc. ALSO: corresponding highlights in the actual input string.
+          # need multiple matches. inbetween fuzzy = faded bg of fuzzy fg.  regex wildcards/dots etc, ditto. check denite/fzf sources for how to... 
+          # ALSO: different bg for different words with regular matcher, etc.  ALSO: corresponding highlights in the actual input string.
           self.matcher.current.highlight(self.text, self.get_ignorecase, hl)  #highlights instances with the appropriate highlighting group
         else:  self.matcher.current.remove_highlight()
         if previous_hit_count != hit_count:  # should use more robust check since we can of course end up with same amount, but different hits
@@ -262,24 +262,14 @@ class Meta(Prompt):
 
 
     def on_term(self, status):
-        self.matcher.current.remove_highlight()   #not on pause tho I guess? also might generally want to put just some suble shit on it on exit
         # self.nvim.command('echomsg "%s" | redraw' % ( '\n' * self.nvim.options['cmdheight']))  #put spacer I guess, fuckit
         self.selected_index = self.nvim.current.window.cursor[0] - 1
-        self.matcher_index = self.matcher.index #what is the point of these temp middlemen, why not grab em straight from where they are, in store()?
-        self.case_index = self.case.index
-        self.syntax_index = self.syntax.index
-        #dont really need to clean up like placed signs and stuff right I guess? cause if we're bailing buf is wiped and signs with it, if we're pausing we don't want them gone yet anyways...
-        # ^ wrong, get left as "signs for [NULL]"
 
         self.nvim.current.buffer.options['modified'] = False  #obvs filtered buffer is not "modified" since only actual subsecquent edits are supposed to count as that, and filtering is something else, decoupled
         if self.text:  #contents of propt when finishing...
             caseprefix = '\c' if self.get_ignorecase() else '\C'
             pattern = self.matcher.current.get_highlight_pattern(self.text)
             self.searchcommand = caseprefix + pattern
-
-            #when multiple search words we really should keep using matchadd() too tho # to separate multiple terms. Plus that add the possibility
-            # of highlighting this way while filtering, and setting hue to match filter-outs and stuff.
-            # Get on stealing that, fzf was it?, ez-mode regex engine
 
         return status
 
@@ -288,10 +278,8 @@ class Meta(Prompt):
         return Condition(
             text=self.text,
             caret_locus=self.caret.locus,
-            selected_index=self.selected_index,
-            matcher_index=self.matcher_index,
-            case_index=self.case_index,
-            syntax_index=self.syntax_index,
+            selected_index=self.selected_index, matcher_index=self.matcher.index,
+            case_index=self.case.index, syntax_index=self.syntax.index,
             restored=True,
         )
 
@@ -302,12 +290,12 @@ class Meta(Prompt):
         self.selected_index = condition.selected_index
         self.matcher_index = condition.matcher_index
         self.case_index = condition.case_index
+        self.syntax_index = condition.syntax_index
         self.matcher = Indexer(
             [AllMatcher(self.nvim), FuzzyMatcher(self.nvim), RegexMatcher(self.nvim)],
             index=self.matcher_index,
         )
         self.case = Indexer(CASES, index=self.case_index)
-        self.syntax_index = condition.syntax_index
         self.syntax = Indexer(SYNTAXES, index=self.syntax_index)
         self.restored = condition.restored
 

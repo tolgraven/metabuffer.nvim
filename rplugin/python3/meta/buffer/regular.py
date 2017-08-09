@@ -1,4 +1,4 @@
-from .buffer import AbstractBuffer
+from .base import AbstractBuffer
 
 
 class Buffer(AbstractBuffer):

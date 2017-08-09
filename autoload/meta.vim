@@ -7,6 +7,9 @@ endfunction
 function! meta#sync(default) abort
 	return _meta_sync(a:default)
 endfunction
+function! meta#finish(default) abort
+	return _meta_finish(a:default)
+endfunction
 function! meta#callback_signs(default) abort
 	return _meta_callback_signs(a:default)
 endfunction
@@ -29,15 +32,17 @@ highlight default link MetaStatuslineMiddle      		None
 
 " highlight default link MetaStatuslineMatcherAll   	Statement
 highlight MetaStatuslineMatcherAll   	cterm=bold gui=italic	guibg=#181818 guifg=#99b9e5
-highlight default link MetaStatuslineMatcherFuzzy		Number
-highlight default link MetaStatuslineMatcherRegex		Special
+" highlight default link MetaStatuslineMatcherFuzzy		Number
+highlight MetaStatuslineMatcherFuzzy	cterm=bold gui=italic	guibg=#181818 guifg=#af8589
+" highlight default link MetaStatuslineMatcherRegex		Special
+highlight MetaStatuslineMatcherRegex	cterm=bold gui=italic	guibg=#181818 guifg=#ca782b
 
 highlight default link MetaStatuslineCaseSmart			String
 highlight default link MetaStatuslineCaseIgnore			Special
 highlight default link MetaStatuslineCaseNormal			Normal
 
 highlight default link MetaStatuslineSyntaxBuffer		Normal
-highlight default link MetaStatuslineSyntaxMeta			Number
+highlight default link MetaStatuslineSyntaxFaded		Number
 
 highlight default link MetaStatuslineIndicator			Tag
 highlight default link MetaStatuslineKey						Comment

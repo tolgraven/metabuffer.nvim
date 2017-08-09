@@ -8,8 +8,8 @@ from .prompt.action import ACTION_PATTERN
 from .prompt.util import build_echon_expr
 from .prompt import *
 
-from .window import PromptWindow
-from .window import MetaWindow
+from .window.prompt import PromptWindow
+from .window.metawindow import MetaWindow
 
 ACTION_KEYSTROKE_PATTERN = re.compile( r'<(?P<action>%s)>' % ACTION_PATTERN.pattern)
 
@@ -56,7 +56,8 @@ class MetaPrompt:
         pass
 
     def start(self):
-        """Initialize the prompt. Set up autocmd hooks so on_update gets called when text is changed"""
+        """Initialize the prompt. Set up autocmd hooks so on_update gets called when text is changed
+        Or do the upcoming nvim hook thing, fetch info on that and try it out..."""
         if self.nvim.options['timeout']:
             timeoutlen = timedelta( milliseconds=int(self.nvim.options['timeoutlen']))
         else: timeoutlen = None
@@ -64,13 +65,15 @@ class MetaPrompt:
         # using own timer or by hooking cursorhold instead? meh, later q...
         self.nvim.command('augroup MetabufferUpdate | autocmd!')
         self.nvim.command('autocmd TextChanged,TextChangedI call meta#sync()')
+        self.nvim.command('autocmd BufLeave call meta#finish()')  #osv
         self.nvim.command('augroup END')
         # if self.text: self.nvim.call('histadd', 'input', self.text)
         # return self.on_term(status)
 
 
     def on_update(self):
-        """Update the prompt in response to text or look changing.  """
+        """Main loop type thing. How do we steer here? Since we won't have any
+        continous main loop at all"""
         self.last_text = self.text
         
 

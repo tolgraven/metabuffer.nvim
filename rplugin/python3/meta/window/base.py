@@ -7,7 +7,7 @@ class AbstractWindow(metaclass=ABCMeta):
 
     Attributes:
         nvim (neovim.Nvim): A ``neovim.Nvim`` instance.
-        nvim.buffer (neovim.Nvim.window): A ``neovim.Nvim.window`` instance.
+        nvim.window (neovim.Nvim.window): A ``neovim.Nvim.window`` instance.
     """
 
     name = 'abstract'
@@ -21,3 +21,4 @@ class AbstractWindow(metaclass=ABCMeta):
         """
         self.nvim = nvim
         self.window = window
+
