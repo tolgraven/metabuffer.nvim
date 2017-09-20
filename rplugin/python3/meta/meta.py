@@ -20,11 +20,8 @@ CASES = (CASE_SMART, CASE_IGNORE, CASE_NORMAL,)
 
 SYN_BUFFER, SYN_FADED = 0, 1
 SYNTAXES = (SYN_BUFFER, SYN_FADED,)
-syntax_types = ['buffer', 'faded']  #will this ever be the extent of it with
-# matchadd covering the rest, or can I come up with new categories? there is some
-# way of combining properties of multiple syntax that I read about, look up.
-# Ideal ofc if individual files of varying filetypes can each coexist properly
-# highlighted within the metabuffer, which is also supposedly possible...
+syntax_types = ['buffer', 'meta']  #will this ever be the extent of it with # matchadd covering the rest, or can I come up with new categories? there is some way of combining properties of multiple syntax that I read about, look up.
+# Ideal ofc if individual files of varying filetypes can each coexist properly highlighted within the metabuffer, which is also supposedly possible...
 
 colors = ['MetaSign' + color for color in ['Aqua', 'Blue', 'Purple', 'Green', 'Yellow', 'Orange', 'Red']]
 
@@ -40,7 +37,7 @@ Condition = namedtuple('Condition', [
 class Meta(Prompt):
     """Meta class."""
 
-    prefix = '#'
+    prefix = '# '
     hotkey = {'matcher': 'C^', 'case': 'C_', 'pause': 'Cc', 'syntax': 'Cs' }  # until figure out how to fetch the keymap back properly
 
     statusline = ''.join([
@@ -97,7 +94,7 @@ class Meta(Prompt):
 
     def switch_highlight(self):
         self.syntax.next()
-        new_syntax = 'faded' if self.syntax.current is SYN_FADED else self.buffer_syntax
+        new_syntax = 'meta' if self.syntax.current is SYN_FADED else self.buffer_syntax
         self.nvim.command('set syntax=' + new_syntax)
         self._previous = ''
 
@@ -179,7 +176,7 @@ class Meta(Prompt):
           hl_prefix, syntax_name = 'Faded', 'meta'
 
         self.nvim.current.window.options['statusline'] = self.statusline % (
-            mode_name.capitalize(), prefix + ' ', self.text,
+            mode_name.capitalize(), prefix, self.text,
             self._buffer_name.split('/')[-1],               # filename without path
             len(self._indices), self._line_count,           # hits / lines
             (self.selected_index or 0) + 1,                 # line under cruisor
@@ -206,7 +203,8 @@ class Meta(Prompt):
         if hit_count < 1000:
           syn = syntax_types[SYN_BUFFER] if self.syntax.current is SYN_BUFFER \
                                        else syntax_types[SYN_FADED]
-          hl = self.highlight_groups[syn] + self.matcher.current.name.capitalize()
+          # hl = self.highlight_groups[syn] + self.matcher.current.name.capitalize()
+          hl = 'MetaSearchHit' + self.matcher.current.name.capitalize()
           # need multiple matches. inbetween fuzzy = faded bg of fuzzy fg.  regex wildcards/dots etc, ditto. check denite/fzf sources for how to... 
           # ALSO: different bg for different words with regular matcher, etc.  ALSO: corresponding highlights in the actual input string.
           self.matcher.current.highlight(self.text, self.get_ignorecase, hl)  #highlights instances with the appropriate highlighting group

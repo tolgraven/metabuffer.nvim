@@ -22,6 +22,7 @@ class AbstractMatcher(metaclass=ABCMeta):
     """
 
     name = 'abstract'
+    also_highlight_per_char = False
 
     def __init__(self, nvim):
         """Constructor.
@@ -31,20 +32,26 @@ class AbstractMatcher(metaclass=ABCMeta):
         """
         self.nvim = nvim
         self._match_id = None    # type: int
+        self._char_match_id = None  # type: int
 
     def remove_highlight(self):
         """Remove current highlight."""
         if self._match_id:
             self.nvim.call('matchdelete', self._match_id)
             self._match_id = None
+        if self._char_match_id:
+            self.nvim.call('matchdelete', self._char_match_id)
+            self._char_match_id = None
 
-    def highlight(self, query, ignorecase, highlight_group='Title'):
+
+    def highlight(self, query, ignorecase, highlight_group='Title', char_highlight_group='IncSearch'):
         """Highlight ``query``.
 
         Args:
             query (str): A query string.
             ignorecase (bool): Boolean to indicate ignorecase.
             highlight_group (str): Vim highlight group to use, if not default.
+            char_highlight_group (str): Vim highlight group for per-char matching, if not default.
         """
         self.remove_highlight()
         if not query:
@@ -56,6 +63,10 @@ class AbstractMatcher(metaclass=ABCMeta):
             ('\c' if ignorecase else '\C') + pattern,
             0,
         )
+        if self.also_highlight_per_char:
+            self._char_match_id = self.nvim.call(
+                'matchadd', char_highlight_group,
+                str('\|').join(query), 0)
 
     @abstractmethod
     def get_highlight_pattern(self, query):

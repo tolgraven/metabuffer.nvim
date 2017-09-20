@@ -11,7 +11,7 @@ from .prompt import *
 from .window.prompt import PromptWindow
 from .window.metawindow import MetaWindow
 
-ACTION_KEYSTROKE_PATTERN = re.compile( r'<(?P<action>%s)>' % ACTION_PATTERN.pattern)
+ACTION_KEYSTROKE_PATTERN = re.compile(r'<(?P<action>%s)>' % ACTION_PATTERN.pattern)
 
 
 STATUS_PROGRESS, STATUS_ACCEPT, STATUS_CANCEL, STATUS_INTERRUPT = 0, 1, 2, 3

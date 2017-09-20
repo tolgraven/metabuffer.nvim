@@ -5,6 +5,7 @@ from .base import AbstractMatcher, escape_vim_patterns
 class Matcher(AbstractMatcher):
     """A fuzzy matcher class for filter candidates."""
     name = 'fuzzy'
+    also_highlight_per_char = True
 
     def get_highlight_pattern(self, query):
         chars = map(escape_vim_patterns, list(query))

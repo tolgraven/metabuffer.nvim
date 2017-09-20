@@ -17,7 +17,8 @@ endfunction
 " execute line('.')
 
 let g:meta#custom_mappings  = get(g:, 'meta#custom_mappings',	[])
-let g:meta#highlight_groups = get(g:, 'meta#highlight_groups', {'meta': 'Title', 'buffer': 'MetaSearchHit'})
+" let g:meta#highlight_groups = get(g:, 'meta#highlight_groups', {'faded': 'Title', 'buffer': 'MetaSearchHit'})
+let g:meta#highlight_groups = get(g:, 'meta#highlight_groups', {'All': 'Title', 'Fuzzy': 'Number', 'Regex': 'Special'})
 let g:meta#syntax_on_init   = get(g:, 'meta#syntax_on_init',	'buffer')
 let g:meta#prefix           = get(g:, 'meta#prefix',		'#')
 
