@@ -1,8 +1,8 @@
 """Window module."""
-from abc import ABCMeta, abstractmethod
+from meta.handle import MetaHandle
 
 
-class AbstractWindow(metaclass=ABCMeta):
+class AbstractWindow(MetaHandle):
     """An abstract window class.
 
     Attributes:
@@ -12,13 +12,21 @@ class AbstractWindow(metaclass=ABCMeta):
 
     name = 'abstract'
 
-    def __init__(self, nvim, window, opts = []):
+    def __init__(self, nvim, window, opts = {}):
         """Constructor.
 
         Args:
             nvim (neovim.Nvim): A ``neovim.Nvim`` instance.
             nvim.window (neovim.Nvim): A ``neovim.Nvim.window`` instance.
         """
-        self.nvim = nvim
+        super().__init__(nvim, window, opts)
         self.window = window
+
+
+    def set_statusline(self, text):
+      self.window.options['statusline'] = text
+
+
+    statusfmt = ['mode', 'prefix', 'query', 'query', 'file', '']
+    statusline =  ''
 

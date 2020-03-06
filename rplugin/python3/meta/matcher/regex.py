@@ -18,7 +18,7 @@ class Matcher(AbstractMatcher):
             except Exception:
                 return
 
-            indices[:] = [                         
-                i for i in indices                
-                if p.search(candidates[i]) 
-            ]                                     
+            indices[:] = [
+                i for i in indices
+                if p.search(candidates[i])
+            ]

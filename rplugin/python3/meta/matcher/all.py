@@ -13,6 +13,7 @@ class Matcher(AbstractMatcher):
 
     def filter(self, query, indices, candidates, ignorecase):
         patterns = map(str.strip, query.split())
+        result = []
 
         if ignorecase:
             _patterns = list(map(str.lower, patterns))
@@ -23,6 +24,10 @@ class Matcher(AbstractMatcher):
         else:
             _patterns = list(patterns)
             indices[:] = [
+            # indice[:] = [
                 i for i in indices
                 if all(p in candidates[i] for p in _patterns)
             ]
+
+        result = indices
+        return result

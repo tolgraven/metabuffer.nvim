@@ -5,7 +5,6 @@ class Window(AbstractWindow):
   """A vim window"""
   name = 'window'
 
-
   def __init__(self, nvim, window):
     """Constructor.
 

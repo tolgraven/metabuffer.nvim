@@ -1,29 +1,62 @@
-from .window import AbstractWindow
+from .base import AbstractWindow
 
 
-class MetaWindow(AbstractWindow):
+class Window(AbstractWindow):
   """A container window potentially consisting of several linked windows acting in tandem"""
   name = 'metawindow'
+  default_opts = {'spell': False, 'foldenable': False,
+                'colorcolumn': '',
+                'cursorline': True, 'cursorcolumn': False, }
+  opts_to_stash = ['foldcolumn', 'number', 'relativenumber', 'wrap', 'conceallevel']
+  # buf also "save everything ya dummy option"
+
+  statusline = ''.join([
+        '%%#MetaStatuslineMode%s#%s%%#MetaStatuslineQuery#%s',
+        '%%#MetaStatuslineFile# %s',
+        '%%#MetaStatuslineIndicator# %d/%d',
+        '%%#Normal# %d',
+        '%%#MetaStatuslineMiddle#%%=',
+        '%%#MetaStatuslineMatcher%s# %s %%#MetaStatuslineKey#%s',
+        '%%#MetaStatuslineCase%s# %s %%#MetaStatuslineKey#%s',
+        '%%#MetaStatuslineSyntax%s# %s %%#MetaStatuslineKey#%s ',])
 
 
-  def __init__(self, nvim, window):
+  # def __init__(self, nvim, window = None, metabuffer, opts = {}):
+  def __init__(self, nvim, window = None, opts = {}):
     """Constructor.
 
     Args:
         nvim.window (neovim.Nvim): A ``neovim.Nvim.window`` instance - the master window
     """
-    #grab below from passed window that we're taking over and eventually restoring.
-    foldcolumn = self.window.options['foldcolumn']
-    number = self.window.options['number']
-    relativenumber = self.window.options['relativenumber']
-    wrap = self.window.options['wrap']
-    win_opts = {'spell': False, 'foldenable': False, 'foldcolumn': foldcolumn,
-                'colorcolumn': '', 'cursorline': True, 'cursorcolumn': False,
-                'wrap': wrap, 'relativenumber': relativenumber, 'number': number,
-                'conceallevel': conceallevel, 
-                }
+
+    window = window or nvim.current.window
+    # self.metabuffer = metabuffer
+    super().__init__(nvim, window, opts)
 
 
-  def __del__(self):
-    """Destructor. Nuke any extra windows. Restore orig window properties."""
+  def on_init(self):
+    pass
+
+  def on_term(self):
+    pass
+
+  def set_statusline(self, mode, prefix, query, name, num_hits, num_lines,
+                     line_nr, matcher, case, hl_prefix, syntax):
+      hotkey = {'matcher': 'C^', 'case': 'C_', 'pause': 'Cc', 'syntax': 'Cs'}  # until figure out how to fetch the keymap back properly
+
+      text = self.statusline % (
+          mode.capitalize(), prefix, query, name,
+          num_hits, num_lines, line_nr,
+          matcher.capitalize(), matcher, hotkey['matcher'],
+          case.capitalize(),    case,    hotkey['case'],
+          hl_prefix,            syntax,   hotkey['syntax']) #remember:
+        # this will later go in promptwindow, input being its reg buf
+        # with timeoutlen set v short
+        # which also solves throttling etc
+
+      self.push_opt('statusline', text)
+      # self.set_statusline(text)
+      # self.nvim.current.window.options['statusline'] =
+
+
 

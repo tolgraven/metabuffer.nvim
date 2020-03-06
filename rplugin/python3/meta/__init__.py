@@ -42,17 +42,20 @@ def start(nvim, args, mode):
             )
         meta = Meta(nvim, condition)
         status = meta.start()  #main loop. Prob rename from 'start' to 'run', no?
+
         if status is STATUS_ACCEPT or STATUS_CANCEL:
-            meta.matcher.current.remove_highlight()
+            meta.matcher.remove_highlight()
             nvim.command('sign unplace * buffer=%d' % nvim.current.buffer.number)
-            nvim.command('noautocmd keepjumps %dbuffer' % meta.get_origbuffer().number)
+            nvim.command('noautocmd keepjumps %dbuffer' % meta.origbuffer.number)
 
         if status is STATUS_ACCEPT:  # <CR>
             nvim.command(':' + str(meta.selected_line)) # nvim.call('cursor', [meta.selected_line, 0])  #doesnt add prev loc to jumplist...
             nvim.command('normal! zv')  #open any folds after jumping
             # XXX try to land with cursor on same physical line as were on, to again minimize jumpery
-            nvim.call('setreg', '/', meta.get_searchcommand())  #populate search reg
-            nvim.command('normal! n')  #put cursor at start of searched-for word
+            try:
+              nvim.call('setreg', '/', meta.vim_query)  #populate search reg
+              nvim.command('normal! n')  #put cursor at start of searched-for word
+            except: pass # no match
             # nvim.command('nohlsearch')  #clear hl
 
         elif status is STATUS_CANCEL:  # <Esc>
@@ -62,19 +65,19 @@ def start(nvim, args, mode):
         elif status is STATUS_INTERRUPT:  # <C-c>
             # nvim.command('echomsg "STATUS_INTERRUPT"') #NORMAL MODE/ PAUSE. Reset buftype and shit to avoid wiping buffer and allow writing to it -> sync it back
             nvim.command('set buftype=')
-            nvim.command('file metabuffer ' + meta.text)  #name buffer so can see what we were doing. later will ofc have metaprompt hanging around still, but good either way
+            nvim.command('file metabuffer ' + meta.query)  #name buffer so can see what we were doing. later will ofc have metaprompt hanging around still, but good either way
             # CONSIDER: change HLsearch highight locally, to match our matchadd? again, always minimize jittery disruptive changes...
             # and then use matchadd as base and set searchcommand to obvs not
             # entire filter query but whatever is deemed most relevant / top of stack like
 
-            # indices[:] = meta.get_indices()   #grab indices here yeah?
+            # indices[:] = meta.buf.indices   #grab indices here yeah?
             # set up autocmd to nuke signs once buffer is finally actually killed...
 
         nvim.command('redraw')
         nvim.current.buffer.vars['_meta_context'] = meta.store()._asdict()
 
     except Exception as e:
-        try: nvim.command('noautocmd keepjumps %dbuffer' % meta.get_origbuffer().number)
+        try: nvim.command('noautocmd keepjumps %dbuffer' % meta.origbuffer.number)
         except: pass # nvim.command('bnext')  #couldnt restore to specific buf, manually try to go to last buf
 
         nvim.command('redraw! | redrawstatus | echohl ErrorMsg')
