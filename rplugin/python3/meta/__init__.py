@@ -35,7 +35,13 @@ try:
 
 except ImportError:
     pass
-
+# for plugin developmnt:
+# import neovim
+# import os
+# nvim = neovim.attach('socket', path='/tmp/nvimsocketmeta-dev')
+#
+# %run './rplugin/python3/meta/__init__.py'   # also refreshes code
+# start(nvim, [], 'start')
 
 def start(nvim, args, mode):
     import traceback
