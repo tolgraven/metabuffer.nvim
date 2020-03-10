@@ -10,9 +10,10 @@ from .matcher.fuzzy import Matcher as FuzzyMatcher
 from .matcher.regex import Matcher as RegexMatcher
 from .buffer.metabuffer import Buffer as MetaBuffer
 from .window.metawindow import Window as MetaWindow
-from .util import assign_content
-
-# ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
+# from .util import ???
+import logging
+logfile = '/Users/tol/meta.log'
+level = logging.DEBUG
 
 cases = ['smart', 'ignore', 'normal']
 syntax_types = ['buffer', 'meta']  # will this ever be the extent of it with matchadd covering rest, or I suppose 'mixed' (region, like in markdown...) a given later. +there is some way of combining properties of multiple syntax that I read about, look up.  Ideal ofc if individual files of varying filetypes can each coexist properly highlighted within the metabuffer, which is also supposedly possible...
@@ -86,10 +87,11 @@ class Meta(Prompt):
       self.mode[mode_indexer].next()
       self._prev_text = ''                                     # Force rerun query from start
 
-    def __init__(self, nvim, saved_state): # add more args. f.ex. some action to take on exit...
+
+    def __init__(self, nvim, state):
+        logging.basicConfig(filename=logfile, level=level)
+        logging.warning('abc')    # apparently broken by pynvim? lol
         super().__init__(nvim)
-        self._previous = ''
-        self._previous_hit_count = 0
 
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
         for keys in [DEFAULT_ACTION_KEYMAP,
@@ -115,8 +117,11 @@ class Meta(Prompt):
                                           on_active = f) #temp since Buffer will handle but yeah
                         # oh yeah never actually updates outside indexer, hence... but dont fuck w it until everything's moved out
 
-        self.buf = MetaBuffer(self.nvim, self.nvim.current.buffer)
+        view = self.nvim.call('winsaveview')  # get a weirdo jump on term instead with this...
         self.win = MetaWindow(self.nvim)
+        self.buf = MetaBuffer(self.nvim, self.nvim.current.buffer)  # also inits content etc...
+        self.model_buf = self.buf.model
+        self.nvim.call('winrestview', view)  # test
 
 
     def start(self):
@@ -146,7 +151,9 @@ class Meta(Prompt):
                                 self.buf.name_short,   # filename without path
                                 len(self.buf.indices), # hits
                                 self.buf.line_count,   # lines
-                                (self.selected_index or 0) + 1,  # line under cruisor
+                                # (self.selected_index or 0) + 1,  # line under cruisor
+                                self.selected_line or 0,  # line under cruisor
+                                self.debug_out,        # DEBUG DUMP:
                                 self.matcher.name, self.case,
                                 hl_prefix, self.buf.syntax)
 
@@ -161,35 +168,49 @@ class Meta(Prompt):
 
 
     def on_update(self, status): # prompt update
-        previous = self._previous
-        self._previous = self.text
+        prev_text, prev_hits, prev_hit_count = self.update_prev()
+        self.updates += 1
+        logging.info('WTF IS WRONG')    # apparently broken by pynvim? lol
 
-        win = self.nvim.current.window
+        # this one just lies in these instances...  [2, 3, 4, 6, 7, 8, 9, 10, 11, 12, 13, 42, 115, 122, 125, 256, 310]
+        # prev_selected = self.nvim.current.window.cursor[0] - 1      # in ex: is 10.
+        prev_selected = self.selected_index                         # selected_index not cursor yada, so incl get from restore
+        prev_line_nr = self.buf.source_line_nr(prev_selected)       # in ex, 14 except we're getting 11 when actually run. why m.buf.indices[10] + 1 = 14
 
-        previous_hit_count = len(self.buf.filtered_indexes)
-        if not previous or not self.text.startswith(previous):  # new, restarted or backtracking
-            self.buf.reset_filter()
-            # if previous and self.text:                          # there both was and is text. seems redundant lol
-            #     self.nvim.call('cursor', [1, win.cursor[1]])
-        # elif previous and previous != self.text:                # if query has changed
-            # self.nvim.call('cursor', [1, win.cursor[1]])
-        self.nvim.call('cursor', [1, win.cursor[1]])
+        reset_if = not prev_text or not self.text.startswith(prev_text)
+        self.buf.run_filter(self.matcher, self.text, self.ignorecase, reset_if)
+        #  # still yucky but better encapsulated like this yeah?  same goes for rest tho - all buf internal shit
 
-        self.matcher.filter(self.text, self.buf.filtered_indexes,
-                            self.buf.content[:], self.ignorecase) # ^  weird thing with regex matcher (which unlike others can end up with more chars AND more hits) if go eg 'function|return' only adds the return lines once hit backspace...
-        # ^ the horror!! fix this uncouth unpure monstrosity.
-        hit_count = len(self.buf.filtered_indexes)
-        if hit_count < 1000:
-          hl = 'MetaSearchHit' + self.matcher.name.capitalize()   # need multiple matches. inbetween fuzzy = faded bg of fuzzy fg.  regex wildcards/dots etc, ditto. check denite/fzf sources for how to...
-          self.matcher.highlight(self.text, self.ignorecase, hl)  # highlights instances with the appropriate highlighting group
-        else:
-          self.matcher.remove_highlight()     #too much, man
+        curr_line_nr = self.buf.source_line_nr(prev_selected)       # makes sense turns None
+        our_idx = None
+        # if prev_hit_count != self.hit_count and prev_hits != self.buf.indices:  # so first compare count THEN double-check indexes changed
+        if prev_hits != self.buf.indices:  # makes sense - do any indexes differ? then run...
+          self.buf.update()   # display filter from above. remember winstore+winrestview called inside here
 
-        if previous_hit_count != hit_count:  # should use more robust check since we can of course end up with same amount, but different hits
-          self.buf.update()
+          if curr_line_nr != None and prev_line_nr != curr_line_nr:  # if same index means other src line, react...
+            try:
+              our_idx = self.buf.indices.index(prev_line_nr - 1) # where is prev line nr hit now?
+              # our_idx = self.buf.indices.index(prev_line_nr) - 1 # where is prev line nr hit now?
+            except ValueError:    # our selected line has disappeared!
+              our_idx = self.buf.closest_index(prev_line_nr - 1, False)   # after update we can ensure on right line
+            finally:
+              if our_idx != None and our_idx != 0: #temp test ooook ugly hack sorta works for now.
+                self.win.set_row(our_idx + 1)  # line is _gone_ and if it's simply shifted
+                # self.selected_index = self.nvim.current.window.cursor[0] - 1
+            # ok still dont get why jumps upwards and returns lowballin when shouldnt
+            # uglyhack semi-work for now - skip our_idx if 0.  so only works when due to our_idx ret 0, not when just low
+            # only resume investigation WHEN FUCKING GOT THE TOOLS FOR IT UGH
+            # also def stuff still off line_nr vs index +- 1 bs
 
-        # self.selected_index = self.nvim.current.window.cursor[0] - 1
-        # still not updating even with it, but needs to be set somewhere right? dunno where i lost it
+
+        self.debug_out = ' idx p/n %d/%d line p/n %d/%d newidx %d, up(%d)' % \
+          (prev_selected, self.nvim.current.window.cursor[0] - 1,
+           prev_line_nr if prev_line_nr != None else -1,
+           curr_line_nr if curr_line_nr != None else -1,
+           our_idx if our_idx != None else -9,
+           self.updates)
+
+        self.selected_index = self.nvim.current.window.cursor[0] - 1
 
         # self.handle_signs(hit_count)
         return super().on_update(status)

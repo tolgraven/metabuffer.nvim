@@ -7,14 +7,17 @@ class Window(AbstractWindow):
   default_opts = {'spell': False, 'foldenable': False,
                 'colorcolumn': '',
                 'cursorline': True, 'cursorcolumn': False, }
-  opts_to_stash = ['foldcolumn', 'number', 'relativenumber', 'wrap', 'conceallevel']
-  # buf also "save everything ya dummy option"
+  opts_to_stash = ['foldcolumn',
+                   'number', 'relativenumber',
+                   'wrap', 'conceallevel']
+  # buf also "clone everything ya dummy option"
 
   statusline = ''.join([
         '%%#MetaStatuslineMode%s#%s%%#MetaStatuslineQuery#%s',
         '%%#MetaStatuslineFile# %s',
         '%%#MetaStatuslineIndicator# %d/%d',
         '%%#Normal# %d',
+        '%s',
         '%%#MetaStatuslineMiddle#%%=',
         '%%#MetaStatuslineMatcher%s# %s %%#MetaStatuslineKey#%s',
         '%%#MetaStatuslineCase%s# %s %%#MetaStatuslineKey#%s',
@@ -30,7 +33,6 @@ class Window(AbstractWindow):
     """
 
     window = window or nvim.current.window
-    # self.metabuffer = metabuffer
     super().__init__(nvim, window, opts)
 
 
@@ -41,22 +43,25 @@ class Window(AbstractWindow):
     pass
 
   def set_statusline(self, mode, prefix, query, name, num_hits, num_lines,
-                     line_nr, matcher, case, hl_prefix, syntax):
-      hotkey = {'matcher': 'C^', 'case': 'C_', 'pause': 'Cc', 'syntax': 'Cs'}  # until figure out how to fetch the keymap back properly
+                     line_nr,
+                     debug_out,
+                     matcher, case, hl_prefix, syntax):
+      hotkey = {'matcher': 'C^',
+                'case': 'C_',
+                'pause': 'Cc',
+                'syntax': 'Cs'}  # until figure out how to fetch the keymap back properly
 
       text = self.statusline % (
           mode.capitalize(), prefix, query, name,
-          num_hits, num_lines, line_nr,
+          num_hits, num_lines,
+          line_nr,
+          debug_out,
           matcher.capitalize(), matcher, hotkey['matcher'],
           case.capitalize(),    case,    hotkey['case'],
-          hl_prefix,            syntax,   hotkey['syntax']) #remember:
+          hl_prefix,            syntax,  hotkey['syntax']) #remember:
         # this will later go in promptwindow, input being its reg buf
         # with timeoutlen set v short
         # which also solves throttling etc
 
-      self.push_opt('statusline', text)
-      # self.set_statusline(text)
-      # self.nvim.current.window.options['statusline'] =
-
-
+      super().set_statusline(text)
 
