@@ -2,8 +2,7 @@ import time
 import re
 from collections import namedtuple
 from meta.prompt.prompt import (  # type: ignore
-    INSERT_MODE_INSERT, INSERT_MODE_REPLACE, Prompt,
-)
+    INSERT_MODE_INSERT, INSERT_MODE_REPLACE, Prompt, Condition)
 from .action import DEFAULT_ACTION_KEYMAP, DEFAULT_ACTION_RULES
 from .modeindexer import ModeIndexer
 from .matcher.all import Matcher as AllMatcher
@@ -17,22 +16,30 @@ from .util import assign_content
 # ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
 
 cases = ['smart', 'ignore', 'normal']
-syntax_types = ['buffer', 'meta']  # will this ever be the extent of it with # matchadd covering the rest, or can I come up with new categories? there is some way of combining properties of multiple syntax that I read about, look up.
-# Ideal ofc if individual files of varying filetypes can each coexist properly highlighted within the metabuffer, which is also supposedly possible...
-Condition = namedtuple('Condition', [
-    'text', 'caret_locus',
-    'selected_index', 'matcher_index', 'case_index', 'syntax_index',
-    'restored', ])
+syntax_types = ['buffer', 'meta']  # will this ever be the extent of it with matchadd covering rest, or I suppose 'mixed' (region, like in markdown...) a given later. +there is some way of combining properties of multiple syntax that I read about, look up.  Ideal ofc if individual files of varying filetypes can each coexist properly highlighted within the metabuffer, which is also supposedly possible...
 
+extra_cond = ('selected_index',     # selected line (out of curr visible)
+              'matcher_index', 'case_index', 'syntax_index',
+              'restored',)
+Condition = namedtuple('Condition', Condition._fields + extra_cond)
+def default_condition(nvim, query):
+  """Should go in proper State class hey"""
+  return Condition(text=query, caret_locus=len(query),
+                    selected_index=nvim.current.window.cursor[0] - 1,
+                    matcher_index=0, case_index=0, syntax_index=0,
+                    restored=False)
 
 class Meta(Prompt):
     """Meta class."""
 
     _prefix = '# '
     mode = {}
-    selected_index = 0 # index = {'selected': 0. yada...}
-    callback_time = 500
-    timer_id = 0
+    selected_index = 0            # selected line index out of current filter view
+    updates = 0
+    debug_out = ''
+    # callback_time = 500
+    # timer_id = 0
+    _prev_text = ''                # Latest entered query, so can compare incoming
 
     @property
     def matcher(self): return self.mode['matcher'].current
@@ -50,9 +57,10 @@ class Meta(Prompt):
 
     @property
     def selected_line(self):
-        if len(self.buf.indices) and self.selected_index >= 0:
-            return self.buf.indices[self.selected_index] + 1
-        return 0
+      """Get (actual) line number of selection.
+      Mind buf.indices curr returns filtered variety.
+      Jump on _ACCEPT working correctly, but not statusline prompt..."""
+      return self.buf.source_line_nr(self.selected_index)
 
     @property
     def prefix(self):
@@ -60,11 +68,10 @@ class Meta(Prompt):
       return 'R' if self.insert_mode is INSERT_MODE_REPLACE else self._prefix
 
     @property
-    def origbuffer(self): return self.buf.model
-
-    @property
-    def vim_query(self): #should go outside class tho, or well can/will use straight vim stuff later on while running. hmm...
-      """Vim search query to run after (not-yet-)Meta finish"""
+    def vim_query(self): #
+      """Vim search query to run after (not-yet-)Meta _ACCEPT finish.  should go
+      outside class tho, or well can/will use straight vim stuff later on while
+      running. hmm..."""
       if not self.text: return ''
 
       caseprefix = r'\c' if self.ignorecase else r'\C'
@@ -219,20 +226,14 @@ class Meta(Prompt):
 
     def store(self):
         """Save current prompt condition into a Condition instance."""
-        return Condition(
-            text=self.text,
-            caret_locus=self.caret.locus,
-            selected_index=self.selected_index,
-            matcher_index=self.mode['matcher'].index,
-            case_index=self.mode['case'].index,
-            syntax_index=self.mode['syntax'].index,
-            restored=True,
-        )
+        extra = (self.selected_index,
+                 *[self.mode[m].index for m in ['matcher', 'case', 'syntax']],
+                 True,)
+        return Condition(*(super().store() + extra)) # super useless and dumb (losing namedness right), just wanted to try >:)
 
     def restore(self, condition):
         """Load current prompt condition from a Condition instance."""
-        self.text = condition.text
-        self.caret.locus = condition.caret_locus
+        super().restore(condition)
         self.selected_index = condition.selected_index
-        self.restored = condition.restored
+        self.restored = condition.restored  # seems somehow superflous but eh
 
