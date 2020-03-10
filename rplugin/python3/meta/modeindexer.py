@@ -32,11 +32,11 @@ class ModeIndexer:
 
     def on_active(self): self._safe_call(self._on_active)
 
-    def _safe_call(self, method):
-        if isinstance(method, str): #lookup method
-            getattr(self.current, method)()
-        elif method:
-            method(self) #call lambda
+    def _safe_call(self, function):
+        if isinstance(function, str):           # lookup method
+            getattr(self.current, function)()
+        elif function:                          # call lambda
+            function(self)
 
 
     def next(self, offset=1):
@@ -46,5 +46,4 @@ class ModeIndexer:
     def previous(self, offset=1):
         self.index -= offset
         return self.current
-
 

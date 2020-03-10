@@ -8,7 +8,6 @@ from .modeindexer import ModeIndexer
 from .matcher.all import Matcher as AllMatcher
 from .matcher.fuzzy import Matcher as FuzzyMatcher
 from .matcher.regex import Matcher as RegexMatcher
-from .buffer.regular import Buffer as RegularBuffer
 from .buffer.metabuffer import Buffer as MetaBuffer
 from .window.metawindow import Window as MetaWindow
 from .util import assign_content
@@ -30,7 +29,8 @@ def default_condition(nvim, query):
                     restored=False)
 
 class Meta(Prompt):
-    """Meta class."""
+    """Meta class. Shouldn't inherit from Prompt in long run...
+    Or rather, Keep as-is but with something else wrapping..."""
 
     _prefix = '# '
     mode = {}
@@ -78,6 +78,13 @@ class Meta(Prompt):
       pattern = self.matcher.get_highlight_pattern(self.text)
       return caseprefix + pattern
 
+    @property
+    def hit_count(self): return len(self.buf.indices)
+
+    def switch_mode(self, mode_indexer):
+      """Switch a stepping setting to its next value"""
+      self.mode[mode_indexer].next()
+      self._prev_text = ''                                     # Force rerun query from start
 
     def __init__(self, nvim, saved_state): # add more args. f.ex. some action to take on exit...
         super().__init__(nvim)
@@ -85,31 +92,27 @@ class Meta(Prompt):
         self._previous_hit_count = 0
 
         self.action.register_from_rules(DEFAULT_ACTION_RULES)
-        self.keymap.register_from_rules(nvim, DEFAULT_ACTION_KEYMAP)
-        custom_keys = nvim.vars.get('meta#custom_mappings', [])
-        self.keymap.register_from_rules(nvim, custom_keys) # self.keymap...  # something to get switcher bindings for statusline.  just ad to custom_keys eh..
-        # XXX all unrecognized input keys should pause and/or passthrough to vim i guess?
+        for keys in [DEFAULT_ACTION_KEYMAP,
+                     nvim.vars.get('meta#custom_mappings', [])]:  # something to get switcher bindings for statusline.  just ad to custom_keys eh..
+          self.keymap.register_from_rules(nvim, keys)             # XXX all unrecognized input keys should pause and/or passthrough to vim i guess?
 
         self.highlight_groups = nvim.vars.get('meta#highlight_groups', {})
         self.signs_enabled = nvim.vars.get('meta#line_nr_in_sign_column') or False
 
-        self.restore(saved_state)
+        self.restore(state)
 
-        self.mode['matcher'] = \
-          ModeIndexer(
-            [AllMatcher(self.nvim), FuzzyMatcher(self.nvim), RegexMatcher(self.nvim)],
-            index=saved_state.matcher_index or 0,
-            on_leave = 'remove_highlight')
-        self.mode['case'] = \
-            ModeIndexer(cases, saved_state.case_index or 0)
+        self.mode['matcher'] = ModeIndexer([AllMatcher(self.nvim),    # TODO Prob ev pass MetaBuffer obj rather than nvim, so matchers use our abstractions
+                                            FuzzyMatcher(self.nvim),
+                                            RegexMatcher(self.nvim)],
+                                           state.matcher_index or 0,
+                                           on_leave = 'remove_highlight')
+        self.mode['case'] = ModeIndexer(cases,
+                                        state.case_index or 0)
 
-        f = lambda this: self.buf.apply_syntax('meta' if this.current is 'meta' else None)
-        # switcher = lambda this: (
-        #                     syn = 'meta' if this.current is 'meta' else None
-        #                     self.buf.apply_syntax(syn))
+        f = lambda syn: self.buf.apply_syntax('meta' if syn.current is 'meta' else None)
         self.mode['syntax'] = ModeIndexer(syntax_types,
-                                          saved_state.syntax_index or 0,
-                                          on_active=f) #temp since Buffer will handle but yeah
+                                          state.syntax_index or 0,
+                                          on_active = f) #temp since Buffer will handle but yeah
                         # oh yeah never actually updates outside indexer, hence... but dont fuck w it until everything's moved out
 
         self.buf = MetaBuffer(self.nvim, self.nvim.current.buffer)
@@ -122,16 +125,7 @@ class Meta(Prompt):
           return super().start()
         finally:
           self.buf.pop_opt('bufhidden')
-          self.matcher.remove_highlight() #should be in dtor i guess
-
-
-    def switch_mode(self, mode_indexer):
-      """Switch a stepping setting to its next value"""
-      self.mode[mode_indexer].next()
-      self._previous = '' #force rerun query from start
-    def switch_matcher(self):   self.switch_mode('matcher') # til figure out sending args from vim. also obvs need setting directly
-    def switch_case(self):      self.switch_mode('case')       # not stepping, whenexpanding to more stuff
-    def switch_highlight(self): self.switch_mode('syntax')
+          self.matcher.remove_highlight() #should be in matcher dtor i guess
 
 
     def on_init(self):
@@ -145,6 +139,7 @@ class Meta(Prompt):
 
 
     def on_redraw(self):
+        """Prompt redraw of window statusline. In future hook (like rest) to """
         mode_name = 'replace' if self.insert_mode is INSERT_MODE_REPLACE else 'insert'
         hl_prefix = 'Faded'   if self.buf.syntax is 'meta' else 'Buffer'
         self.win.set_statusline(mode_name, self.prefix, self.text,
@@ -157,6 +152,12 @@ class Meta(Prompt):
 
         self.nvim.command('redrawstatus')
         return super().on_redraw()
+
+    def update_prev(self):
+        """Assuming there'll be more things to stash on update?"""
+        prev = self._prev_text
+        self._prev_text = self.text
+        return [prev, self.buf.indices[:], len(self.buf.indices)]
 
 
     def on_update(self, status): # prompt update

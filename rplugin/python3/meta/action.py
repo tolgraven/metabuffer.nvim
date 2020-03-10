@@ -9,18 +9,16 @@ def _select_previous_candidate(meta, params):
 
 
 def _switch_matcher(meta, params):
-    meta.switch_matcher()
-
+    meta.switch_mode('matcher')
 
 def _switch_case(meta, params):
-    meta.switch_case()
-
+    meta.switch_mode('case')
 
 def _switch_highlight(meta, params):
-    meta.switch_highlight()
+    meta.switch_mode('syntax')
 
 def _pause_prompt(meta, params):
-    meta._pause_prompt()
+    meta.pause_prompt()
 
 
 DEFAULT_ACTION_RULES = [
@@ -37,6 +35,7 @@ DEFAULT_ACTION_KEYMAP = [
     ('<PageUp>', '<meta:select_previous_candidate>', 'noremap'),
     ('<PageDown>', '<meta:select_next_candidate>', 'noremap'),
     ('<C-A>', '<meta:move_caret_to_head>', 'noremap'),
+    ('<C-E>', '<meta:move_caret_to_tail>', 'noremap'),
     ('<C-T>', '<meta:select_previous_candidate>', 'noremap'),
     ('<C-G>', '<meta:select_next_candidate>', 'noremap'),
     ('<C-P>', '<meta:select_previous_candidate>', 'noremap'),
@@ -46,9 +45,9 @@ DEFAULT_ACTION_KEYMAP = [
     ('<Left>', '<meta:move_caret_to_left>', 'noremap'),
     ('<Right>', '<meta:move_caret_to_right>', 'noremap'),
     ('<C-I>', '<meta:toggle_insert_mode>', 'noremap'),
-    # ('<S-Right>', '<meta:move_caret_to_one_word_right>', 'noremap'),
+    # ('<M-b>', '<meta:move_caret_to_one_word_right>', 'noremap'),
     # ('<C-Right>', '<meta:move_caret_to_one_word_right>', 'noremap'),
-    # ('<S-Left>', '<meta:move_caret_to_one_word_left>', 'noremap'),
+    # ('<M-f>', '<meta:move_caret_to_one_word_left>', 'noremap'),
     # ('<C-Left>', '<meta:move_caret_to_one_word_left>', 'noremap'),
     ('<S-Tab>', '<meta:select_previous_candidate>', 'noremap'),
     ('<Tab>', '<meta:select_next_candidate>', 'noremap'),
@@ -58,7 +57,7 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-->', '<meta:switch_case>', 'noremap'),
     ('<C-S>', '<meta:switch_highlight>', 'noremap'),
     ('<M-H>', '<meta:switch_highlight>', 'noremap'),
-    ('<C-z>', '<meta:_pause_prompt>', 'noremap'),
+    ('<C-z>', '<meta:_pause_prompt>', 'noremap'),      # not even reaching
     ]
 # yank_to_default_register
 # yank_to_register
