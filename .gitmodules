@@ -1,3 +1,6 @@
 [submodule "rplugin/python3/meta/prompt"]
 	path = rplugin/python3/meta/prompt
 	url = https://github.com/lambdalisue/neovim-prompt
+[submodule "ext/denite"]
+	path = ext/denite
+	url = https://github.com/Shougo/denite.nvim
