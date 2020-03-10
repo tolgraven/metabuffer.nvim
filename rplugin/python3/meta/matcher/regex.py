@@ -1,9 +1,10 @@
 import re
 from .base import AbstractMatcher, escape_vim_patterns
-from .util import split_input, convert2regex_pattern
+from meta.util import split_input, convert2regex_pattern
 
 class Matcher(AbstractMatcher):
-    """A regex matcher class for filter candidates."""
+    """A regex matcher class for filter candidates.
+    Needs a lot of fixin up..."""
     name = 'regex'
 
     def get_highlight_pattern(self, query):
@@ -18,7 +19,4 @@ class Matcher(AbstractMatcher):
             except Exception:
                 return
 
-            indices[:] = [
-                i for i in indices
-                if p.search(candidates[i])
-            ]
+            indices[:] = [i for i in indices if p.search(candidates[i])]

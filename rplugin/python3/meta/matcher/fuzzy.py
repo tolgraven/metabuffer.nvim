@@ -5,27 +5,22 @@ from .base import AbstractMatcher, escape_vim_patterns
 class Matcher(AbstractMatcher):
     """A fuzzy matcher class for filter candidates."""
     name = 'fuzzy'
-    also_highlight_per_char = True
+    also_highlight_per_char = True # tbh reg hl completely disappears then...
 
-    def get_highlight_pattern(self, query):
-        chars = map(escape_vim_patterns, list(query))
-        chars = map(lambda x: '%s[^%s]\\{-}' % (x, x), chars)
+    def _pat(self, pat, escape_by, query):
+        chars = map(escape_by, list(query))
+        chars = map(lambda x: pat % (x, x), chars)
         return ''.join(chars)
 
-    def filter(self, query, indices, candidates, ignorecase):
-        chars = map(re.escape, list(query))
-        chars = map(lambda x: '%s[^%s]*?' % (x, x), chars)
-        pattern = ''.join(chars)
 
-        if ignorecase:
-            _pattern = re.compile(pattern.lower())
-            indices[:] = [
-                i for i in indices
-                if _pattern.search(candidates[i].lower())
-            ]
-        else:
-            _pattern = re.compile(pattern)
-            indices[:] = [
-                i for i in indices
-                if _pattern.search(candidates[i])
-            ]
+    def get_highlight_pattern(self, query):
+        hi_pat = '%s[^%s]\\{-}'
+        return self._pat(hi_pat, escape_vim_patterns, query)
+
+    def filter(self, query, indices, candidates, ignorecase):
+        filt_pat = '%s[^%s]*?'
+        pattern = self._pat(filt_pat, re.escape, query)
+        p = re.compile(pattern, flags=re.IGNORECASE if ignorecase else 0)
+
+        indices[:] = [i for i in indices if p.search(candidates[i])]
+

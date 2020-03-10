@@ -13,6 +13,10 @@ ESCAPE_VIM_PATTERN_TABLE = str.maketrans({
     '\\': '\\\\',
 })
 
+default_hi='Title'
+default_hi_prefix='MetaSearchHit'
+default_hi_char='Structure'   # incsearch is Visual, way too fucked...
+
 
 class AbstractMatcher(metaclass=ABCMeta):
     """An abstract matcher class.
@@ -34,17 +38,23 @@ class AbstractMatcher(metaclass=ABCMeta):
         self._match_id = None    # type: int
         self._char_match_id = None  # type: int
 
+    def __del__(self):
+        """Destructor. Remove current highlight unless overridden"""
+        self.remove_highlight()
+
     def remove_highlight(self):
         """Remove current highlight."""
         if self._match_id:
-            self.nvim.call('matchdelete', self._match_id)
+            self.nvim.funcs.matchdelete(self._match_id)
             self._match_id = None
         if self._char_match_id:
-            self.nvim.call('matchdelete', self._char_match_id)
+            self.nvim.funcs.matchdelete(self._char_match_id)
             self._char_match_id = None
 
 
-    def highlight(self, query, ignorecase, highlight_group='Title', char_highlight_group='IncSearch'):
+    def highlight(self, query, ignorecase,
+                  highlight_group_prefix=default_hi_prefix,
+                  char_highlight_group=default_hi_char):
         """Highlight ``query``.
 
         Args:
@@ -57,12 +67,11 @@ class AbstractMatcher(metaclass=ABCMeta):
         if not query:
             return
         pattern = self.get_highlight_pattern(query)
-        self._match_id = self.nvim.call(
-            'matchadd',
-            highlight_group,
-            ('\c' if ignorecase else '\C') + pattern,
-            0,
-        )
+        highlight_group = highlight_group_prefix + self.name.capitalize()
+        self._match_id = self.nvim.funcs.matchadd(
+             highlight_group,
+             ('\c' if ignorecase else '\C') + pattern,
+             0,)
         if self.also_highlight_per_char:
             self._char_match_id = self.nvim.call(
                 'matchadd', char_highlight_group,
