@@ -1,3 +1,6 @@
+" guessing whatever the case might be better vim/nvim crossover stuff by now?
+" keep it here for now...
+
 let s:rep = expand('<sfile>:p:h:h:h')
 
 

@@ -1,24 +1,37 @@
 try:
-    import neovim
+    import pynvim
 
-    @neovim.plugin
-    class MetaEntryPoint:
+    @pynvim.plugin
+    class MetaEntryPoint(object):
         def __init__(self, nvim): self.nvim = nvim
 
-        @neovim.function('_meta_start', sync=True)
+        # @pynvim.function('_meta_start', sync=True, eval=None)
+        @pynvim.function('meta_start', sync=True)
         def start(self, args): return start(self.nvim, args, 'start')
 
-        @neovim.function('_meta_resume', sync=True)
+        @pynvim.function('meta_resume', sync=True)
         def resume(self, args): return start(self.nvim, args, 'resume')
 
-        @neovim.function('_meta_sync', sync=True)
+        @pynvim.function('meta_sync', sync=True)
         def sync(self, args): return sync(self.nvim, args)
 
-        @neovim.function('_meta_finish', sync=True)
+        @pynvim.function('meta_finish', sync=True)
         def finish(self, args): return finish(self.nvim, args)
 
-        @neovim.function('_meta_callback_signs', sync=True)
+        @pynvim.function('meta_callback_signs', sync=True)
         def callback_signs(self, args): return callback_signs(self.nvim, args)
+
+        @pynvim.command('Meta', nargs='?', sync=True)
+        def meta_start(self, args): self.start(args)
+        @pynvim.command('MetaCursorWord', nargs='?', sync=True)
+        def meta_cursor_word(self, args):
+          self.start([self.nvim.funcs.expand('<cword>')])
+
+        @pynvim.command('MetaResume', nargs='?', sync=True)
+        def meta_resume(self, args): self.resume(args)
+        @pynvim.command('MetaResumeCursorWord', nargs='?', sync=True)
+        def meta_resume_cursor_word(self, args):
+          self.resume([self.nvim.funcs.expand('<cword>')])
 
 except ImportError:
     pass
