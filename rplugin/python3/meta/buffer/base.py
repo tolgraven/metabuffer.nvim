@@ -15,17 +15,31 @@ class AbstractBuffer(MetaHandle):
   syntax_types = ['buffer', 'meta']  # will this ever be the extent of it with # matchadd covering the rest, or can I come up with new categories? there is some way of combining properties of multiple syntax that I read about, look up.
   syntax_type = 'buffer' #temp
 
-  def __init__(self, nvim, buffer, opts = {}):
+  def __init__(self, nvim, buffer, model = None, opts = {}):
     """Constructor.
     Args:
       nvim (neovim.Nvim): A ``neovim.Nvim`` instance.
       nvim.buffer (neovim.Nvim): A ``neovim.Nvim.buffer`` instance.
     """
-    super().__init__(nvim, buffer, opts) #well gets weird
+    super().__init__(nvim, buffer, model, opts) #well gets weird
     self.buffer = self.target
 
     # "exceptions" - some lines/buffers need to be frozen/unaffected by edits. How best handle?
     # because not just about not propogating back to source, but also (I guess?) instantly reverting edits so they keep showing up the same...
+
+  @staticmethod
+  def switch_buf(nvim, vimbuffer):
+    """Makes little sense here, but does make sense to wrap since got noautocmd
+    keepjumps possibly keepalt? yada. Static better. But then no nvim instance
+    hah."""
+    nvim.command('noautocmd keepjumps buffer %d' % vimbuffer.number)
+    return nvim.current.buffer
+
+  @staticmethod
+  def new(nvim):
+    """Create and return a new (nvim) buffer"""
+    nvim.command('noautocmd keepjumps enew')
+    return nvim.current.buffer
 
 
 # Types of buffers:
