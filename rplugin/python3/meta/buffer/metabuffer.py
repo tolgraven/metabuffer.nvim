@@ -1,136 +1,92 @@
-# from meta.handle import MetaHandle
+import re
+from copy import deepcopy
 from .base import AbstractBuffer
-from copy import copy
+from .ui import Buffer as UiBuffer
+from meta.sign import Signs, MetaSign
 
+
+ANSI_ESCAPE = re.compile(r'\x1b\[[0-9a-zA-Z;]*?m')
 
 class Buffer(AbstractBuffer):
-  """A vim buffer not meant for end consumption, but as a malleable and
-  temporary mirror"""
-  name = 'metabuffer'
+  """A vim buffer wrapper backed by other sources
+  Will want some specialized types:
+  - Very soon something parsing grep output so can replace :Ag with this.
+    Dont need fancy super-generic multi-types from start, just something working.
+  """
+  name = 'meta'
 
-  default_opts = {'buftype': 'nofile',
-                  'bufhidden': 'wipe',
-                  'buflisted': False,}
+  syntax_types = ['buffer', 'meta']  # will this ever be the extent of it with # matchadd covering the rest, or can I come up with new categories? there is some way of combining properties of multiple syntax that I read about, look up.
+  default_opts = {'buflisted': False,
+                  'bufhidden': 'hide',
+                  'buftype': 'nofile',
+                  }  # this is where different types of buffers will diverge I suppose. These only apply for temp kind...
+  # nofile/write:	When using ":e bufname" and already editing "bufname" the buffer is
+  #               made empty and autocommands are triggered as usual for |:edit|.
+  # so for file naming will have to add an instance UID as well so dont overwrite...
 
+  # views = []  # a metabuffer should be able to present the same material with multiple views
+  # meta_material = [] # metadata parallel to model source material, start first w linenr thing...
+  # inputs = [] # (Meta)Buffers only? or easier also add standalone nvim buf prob..
 
-  def __init__(self, nvim, model_buffer = None, opts = {}): # sending a (nvim, not meta) buffer to model. cause seems silly just taking over stuff that's how you break shit
+  def __init__(self, nvim, model = None, opts = {}): # sending a (nvim, not meta) buffer to model. cause seems silly just taking over stuff that's how you break shit
+    """Basically all of this should go up AbstractBuffer"""
 
-    model = model_buffer or nvim.current.buffer             #or can we set inn arg
-    Buffer.switch_buf(nvim, model)
-    self.name = nvim.eval('simplify(expand("%:~:."))')      #need override super which fetches from target.name?
-
-    self._content = list(map(lambda x: self.ANSI_ESCAPE.sub('', x), model[:]))
+    self.syntax_type = 'buffer' #temp
+    super().__init__(nvim, None, model, [], self.default_opts)
+    self._content = list(map(lambda x: ANSI_ESCAPE.sub('', x), self.model[:]))
+    # tho the escaping will have to be undone or w/e when comparing/pushing right...
     self._indices = list(range(self.line_count))            #not to change
     self.filtered_indexes = deepcopy(self._indices)
 
-    super().__init__(nvim, Buffer.new(nvim), model, opts)   # create new buf, pass it up
+    self.indexbuf = UiBuffer(nvim, self, "indexes", self.default_opts)
 
-    self.signs = self.nvim.command_output('silent sign place buffer=%d' % self.model.number)
-    self.has_signs = True if len(self.signs) > 2 else False
+    self.has_signs = Signs.buf_has_signs(nvim, self.model)
+    if self.has_signs:
+      self.signs = Signs(nvim, self.buffer, force=True)
+      nvim.current.window.options['signcolumn'] = 'yes' #force signs. but window setting, so b careful...
 
-    self.update()   # or defer?
+
+    self.update()   # or defer but then need to flush manually
+    # update also needs to go through views sources etc ask them to try update everything propagating
 
 
-  def on_init(self):
-    pass
     # self.sources = [self]         # a list of Buffer objects, together representing the total text content of this dummy buffer
     # self.rank = ranker # steal something from denite since we need to be able to sort, not the text within each source but the sources themselves
     # self.presentation = False        #like for dummy buffers, stuff to change presentation (whitespace, columns etc...) and other minor stuff, without touching original for those operations
     # self.content[:] = self.sources.join('\n')  #cause I guess we don't need/want dedicated setterart from constructor, just add sources and refresh rather?
 
-  def on_term(self):
-    pass
-
-  @property
-  def name_short(self): return self.name.split('/')[-1]
-
-  @property
-  def content(self):    return self._content
-  @property
-  def line_count(self): return len(self.content)
-  @property
-  def indices(self):    return self.filtered_indexes
-  @property
-  def all_indices(self): return self._indices
-
-  def source_line_nr(self, index):
-    """Skip error checking right now so can se where goes wrong"""
-    # if index >= len(self.indices): index = -1
-    # return self.indices[index] + 1
-    if len(self.indices):
-      try:
-        return self.indices[index] + 1
-      except IndexError:
-        return None
-        # return index
-    else:
-      return None
-
-  def closest_index(self, line_nr, attempt_true_index=True):
-    """For current (filtered) indexes, get matching index if available, else
-    the one nearest given line_nr.
-    Which should actually also be an index because we're looking up indexes dumbo."""
-    index = None
-    if attempt_true_index:
-      try:  index = self.indices.index(line_nr)
-      except ValueError: pass # line filtered out, find closest. prepare for awful algo!
-    return index if index != None else self._closest_index(line_nr)
+    # buffer.add_highlight(hl_group, line, col, col_end, src_id) #well random. useful for something i guess.
+    # nvim.new_highlight_source()
 
 
-  def _closest_index(self, line_nr):
-    for idx in range(len(self.indices)):
-      if self.indices[idx] > line_nr:
-        idxs = max(idx-1, 0), idx
-        dist = [abs(line_nr - line) for line in [self.indices[i] for i in idxs]]
-        return idxs[0] if dist[0] < dist[1] else idxs[1]
-    return -1       # max idx
-
-
-  def run_filter(self, matcher, query, ignorecase, run_clean = False):
-    if run_clean: self.reset_filter() # new, restarted or backtracking
-
-    matcher.filter(query,
-                   self.filtered_indexes,   # .filtered_indexes bc fn is side-effecting, .indices is getter...
-                   self.content[:],
-                   ignorecase) # ^  weird thing with regex matcher (which unlike others can end up with more chars AND more hits) if go eg 'function|return' only adds the return lines once hit backspace...
-    # ^ the horror!! fix this uncouth unpure monstrosity. don't change content in place, return new...
-    # also remember if need to look through .indices many times, make a set copy and do it on that for constant time.
-    if len(self.indices) < 1000:
-      matcher.highlight(query, ignorecase)        # highlights instances with the appropriate highlighting group
-    else:
-      matcher.remove_highlight()                  #too much, man. better if it resigns to just hl currently visible tho...
-
-
-  def reset_filter(self):
-    """Reset filtered indexes to original (which might later be pre-filtered, tho...)"""
-    self.filtered_indexes = deepcopy(self._indices)
+  def update(self):
+    """Has trouble with not being able to change buffer without
+    activating? (within running metaprompt)"""
+    if self.has_signs: self.signs.refresh()
+    super().update() # now not actually filtering when restoring - huh?
+    # for v in self.views: v.update()
+    # for i in self.inputs: i.update()
+    self.indexbuf.update()
+    # for f in self.transforms: f(self) # better later if must be pure and yada dada
 
   @property
   def syntax(self):
     """Return either original (model) buffer syntax, or our special faded
     syntax, depending on settings"""
-    if self.syntax_type is 'buffer' and self.model.options['syntax']:
+    if self.syntax_type == 'buffer' and self.model.options['syntax']:
       return self.model.options['syntax']
     else:
       return 'meta'
 
-  def update(self):
-    """update shown content off any filter. but need further sep, have two
-    Buffers for available vs. displayed content, then keep taking that concept further"""
-    viewinfo = self.nvim.call('winsaveview')  # save where view centered etcetc. Not always ideal when filtering takes us off-center
-    self.push_opt('modifiable', True)
-    self.buffer[:] = [self.content[i] for i in self.filtered_indexes] # does it run loop and then call w final result or update incr? def need former for performance.
-    self.pop_opt('modifiable')
-    self.nvim.call('winrestview', viewinfo)
-
-
   def apply_syntax(self, syntax_type = None):
     """try get orig buffer syntax else fallback etc"""
-    # self.syntax_orig = self.buffer.options['syntax']   #all buffers will have a syntax, even if it's "none"
-    # if not self.syntax_orig:  # something went wrong getting syntax from vim, use strictly meta's own
-    #     self.syntax = 'meta'
     if syntax_type: self.syntax_type = syntax_type
     self.nvim.command('set syntax=' + self.syntax)  # init at index 0 = buffer, for now. Consistent with the others, but can't be hardset later when more appear
+
+  def step_into(self, source, idx):
+    """Navigate into a proper view of a source buffer, which might well not
+    yet exist as an actual buffer in case of global grep aggregation stuff.
+    So look for existing, else load, yada."""
 
 
   def idea(self, hmm):
@@ -146,6 +102,27 @@ class Buffer(AbstractBuffer):
     function definitions on them. Stack on some more individual files, or cmd
     like "all py files in folder", and a textobj filter, then cycle from like
     just lines with func defs, to all function bodies, etc"""
+
+  def indexes_as_content(self):
+    self.target[:] = [self.indices[i] for i in range(len(self.indices))]
+
+
+  def add_view(self):
+    """Test"""
+    # new_view = MetaBuffer(self.nvim, self.buffer)
+    # new_buf =
+    # AbstractBuffer.switch_buf(self.nvim, self.buffer)
+    # views.append(new_buf)
+    # just define something so on update base will shovel something into a buf
+    # no extra meta object-whatever. maybe a view class
+
+    # new_view = Buffer(self.nvim, self.buffer)
+    # new_view.add_transform(Buffer.indexes_as_content)
+    # self.views.append(new_view)
+    # f = lambda this: this.target[:] = [this.indices[i] for i in range(len(this.indices))]
+    # new_view.add_transform(f)
+    # new_view.add_transform(lambda this: this.target[:] = [this.indices[i] for i in range(len(this.indices))])
+    # "tell new_view to mirror us, but instead of content, indexes"
 
 
   def add(self, buffer):

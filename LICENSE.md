@@ -1,7 +1,7 @@
 The MIT License (MIT)
 
-Metabuffer, Copyright © 2017 Joen Tolgraven
-Lista, Copyright 2016 Alisue, hashnote.net
+Meta, Copyright © 2017, 2020 Joen Tolgraven
+Lista, Copyright © 2016 Alisue, hashnote.net
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

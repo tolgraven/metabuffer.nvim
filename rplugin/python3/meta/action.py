@@ -1,11 +1,16 @@
-def _select_next_candidate(meta, params):
-    line, col = meta.nvim.current.window.cursor
-    meta.nvim.call('cursor', [line + 1, col])
+def __change_line(nvim, offset):
+    line, col = nvim.current.window.cursor
+    nvim.call('cursor', [line + offset, col])
 
+def _select_next_candidate(meta, params):
+    __change_line(meta.nvim, 1)
+    # line, col = meta.nvim.current.window.cursor
+    # meta.nvim.call('cursor', [line + 1, col])
 
 def _select_previous_candidate(meta, params):
-    line, col = meta.nvim.current.window.cursor
-    meta.nvim.call('cursor', [line - 1, col])
+    __change_line(meta.nvim, -1)
+    # line, col = meta.nvim.current.window.cursor
+    # meta.nvim.call('cursor', [line - 1, col])
 
 
 def _switch_matcher(meta, params):
@@ -19,7 +24,9 @@ def _switch_highlight(meta, params):
 
 def _pause_prompt(meta, params):
     meta.pause_prompt()
-
+def _accept_and_stay(meta, params):
+    from .prompt.prompt import STATUS_PAUSE
+    return STATUS_PAUSE
 
 DEFAULT_ACTION_RULES = [
     ('meta:select_next_candidate', _select_next_candidate),
@@ -27,7 +34,7 @@ DEFAULT_ACTION_RULES = [
     ('meta:switch_matcher', _switch_matcher),
     ('meta:switch_case', _switch_case),
     ('meta:switch_highlight', _switch_highlight),
-    ('meta:pause_prompt', _pause_prompt),
+    ('meta:pause_prompt', _accept_and_stay),
 ]
 
 
@@ -36,8 +43,6 @@ DEFAULT_ACTION_KEYMAP = [
     ('<PageDown>', '<meta:select_next_candidate>', 'noremap'),
     ('<C-A>', '<meta:move_caret_to_head>', 'noremap'),
     ('<C-E>', '<meta:move_caret_to_tail>', 'noremap'),
-    ('<C-T>', '<meta:select_previous_candidate>', 'noremap'),
-    ('<C-G>', '<meta:select_next_candidate>', 'noremap'),
     ('<C-P>', '<meta:select_previous_candidate>', 'noremap'),
     ('<C-N>', '<meta:select_next_candidate>', 'noremap'),
     ('<C-K>', '<meta:select_previous_candidate>', 'noremap'),
@@ -54,10 +59,11 @@ DEFAULT_ACTION_KEYMAP = [
     ('<C-^>', '<meta:switch_matcher>', 'noremap'),
     ('<C-6>', '<meta:switch_matcher>', 'noremap'),
     ('<C-_>', '<meta:switch_case>', 'noremap'),
-    ('<C-->', '<meta:switch_case>', 'noremap'),
+    ('<C-O>', '<meta:switch_case>', 'noremap'),
     ('<C-S>', '<meta:switch_highlight>', 'noremap'),
     ('<M-H>', '<meta:switch_highlight>', 'noremap'),
-    ('<C-z>', '<meta:_pause_prompt>', 'noremap'),      # not even reaching
+    ('<C-z>', '<meta:pause_prompt>', 'noremap'),      # not even reaching
+    ('<M-CR>', '<meta:pause_prompt>', 'noremap'),      # not even reaching
     ]
 # yank_to_default_register
 # yank_to_register

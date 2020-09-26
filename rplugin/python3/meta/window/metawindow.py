@@ -4,14 +4,16 @@ from .base import AbstractWindow
 class Window(AbstractWindow):
   """A container window potentially consisting of several linked windows acting in tandem"""
   name = 'metawindow'
-  default_opts = {'spell': False, 'foldenable': False,
-                'colorcolumn': '',
-                'cursorline': True, 'cursorcolumn': False, }
+  #               'colorcolumn': '',
+  #               'cursorline': True, 'cursorcolumn': False, }
+  default_opts = {'nospell': '', 'nofoldenable': '',  #'spell': False, 'foldenable': False,
+                  'nocursorcolumn': '', }
   opts_to_stash = ['foldcolumn',
                    'number', 'relativenumber',
                    'wrap', 'conceallevel']
   # buf also "clone everything ya dummy option"
 
+  # statusfmt = ['mode', 'prefix', 'query', 'query', 'file', '']
   statusline = ''.join([
         '%%#MetaStatuslineMode%s#%s%%#MetaStatuslineQuery#%s',
         '%%#MetaStatuslineFile# %s',
@@ -23,24 +25,23 @@ class Window(AbstractWindow):
         '%%#MetaStatuslineCase%s# %s %%#MetaStatuslineKey#%s',
         '%%#MetaStatuslineSyntax%s# %s %%#MetaStatuslineKey#%s ',])
 
+  # move most stuff. def of meta* gotta be having multiple backing objects
+  # (buf repr bufs, window container of eg window + floating sidebar)
+  # windows = []
 
-  # def __init__(self, nvim, window = None, metabuffer, opts = {}):
   def __init__(self, nvim, window = None, opts = {}):
-    """Constructor.
-
-    Args:
-        nvim.window (neovim.Nvim): A ``neovim.Nvim.window`` instance - the master window
+    """IDEAS:
+    -Link window configuration to buffers in relational way (if cpp here then h there...)
+    -Slice up to loads of thin side-by-side windows when doing replace op w many candidates
+    (basically zoom in to right around hits -> show 100+ tot instead of 20-30-whatev)
+    -Post-line comments broken off into own window -> auto aligned and out of way,
+    can shift focus and let code clip and show more comment...
     """
+    super().__init__(nvim, window or nvim.current.window,
+                     self.opts_to_stash,
+                     self.default_opts)
 
-    window = window or nvim.current.window
-    super().__init__(nvim, window, opts)
 
-
-  def on_init(self):
-    pass
-
-  def on_term(self):
-    pass
 
   def set_statusline(self, mode, prefix, query, name, num_hits, num_lines,
                      line_nr,

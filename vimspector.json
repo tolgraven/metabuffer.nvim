@@ -1,0 +1,19 @@
+
+{
+  "configurations": {
+    "PY: Launch": {
+      "adapter": "debugpy",
+      "configuration": {
+        "name": "PY: Launch",
+        "type": "python",
+        "request": "launch",
+        "cwd": "/Users/tol/CODE/VIM/LISTA/metabuffer.nvim/rplugin/python3/meta",
+        "python": "/usr/local/bin/python3",
+        "stopOnEntry": true,
+        "console": "externalTerminal",
+        "debugOptions": [],
+        "program": "/Users/tol/CODE/VIM/LISTA/metabuffer.nvim/rplugin/python3/meta/__init__.py"
+      }
+    }
+  }
+}
